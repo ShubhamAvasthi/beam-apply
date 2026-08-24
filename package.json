@@ -6,11 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "wxt",
-    "dev:firefox": "wxt -b firefox",
+    "dev:chrome": "wxt -b chrome",
     "build": "wxt build",
-    "build:firefox": "wxt build -b firefox",
+    "build:chrome": "wxt build -b chrome",
     "zip": "wxt zip",
-    "zip:firefox": "wxt zip -b firefox",
+    "zip:chrome": "wxt zip -b chrome",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
