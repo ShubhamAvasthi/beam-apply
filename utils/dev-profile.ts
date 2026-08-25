@@ -1,0 +1,17 @@
+import type { JobApplicationProfile } from '~/types/profile';
+
+/**
+ * Demo profile used as the storage fallback during development, so the
+ * autofill button can be tested against realistic data without manually
+ * saving via the options page first.
+ *
+ * Referenced only behind `import.meta.env.DEV` in utils/storage.ts, which
+ * Vite replaces at build time — so this fixture never ships in production.
+ */
+export const DEV_TEST_PROFILE: JobApplicationProfile = {
+  personalInfo: {
+    firstName: 'John',
+    lastName: 'Doe',
+  },
+  updatedAt: null,
+};
