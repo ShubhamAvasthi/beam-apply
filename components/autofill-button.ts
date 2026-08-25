@@ -1,3 +1,5 @@
+import buttonStyle from './autofill-button.css?raw';
+
 import { findAdapter } from '@/platforms';
 import { profileStorage } from '@/utils/storage';
 
@@ -14,26 +16,6 @@ const FILLED_LABEL = '✓ Filled';
  * subject to every ancestor’s CSS. A body-level floating node sidesteps
  * both problems.
  */
-const BUTTON_STYLE = `
-  :host {
-    all: initial;
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    z-index: 2147483647;
-  }
-  button {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 12px 18px;
-    font: 600 14px/1 Inter, system-ui, sans-serif;
-    color: #ffffff; background-color: #646cff;
-    border: none; border-radius: 999px; cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    transition: background-color 0.2s;
-  }
-  button:hover:not(:disabled) { background-color: #535bf2; }
-  button:disabled { opacity: 0.85; cursor: default; }
-`;
 
 /**
  * Mounts the floating BeamApply autofill button on the page body.
@@ -52,7 +34,7 @@ export function mountAutofillButton(): void {
   const shadowRoot = host.attachShadow({ mode: 'open' });
 
   const style = document.createElement('style');
-  style.textContent = BUTTON_STYLE;
+  style.textContent = buttonStyle;
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = BUTTON_LABEL;

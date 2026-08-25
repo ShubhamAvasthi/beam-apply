@@ -1,0 +1,39 @@
+/*
+ * BeamApply floating autofill pill.
+ *
+ * Injected verbatim into the button's shadow root (see
+ * autofill-button.ts). Kept as a BARE `.css` file — no page frameworks
+ * apply here: this must style a single isolated element on arbitrary
+ * host pages and must not leak in either direction.
+ */
+:host {
+  all: initial;
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483647;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 18px;
+  font: 600 14px/1 system-ui, sans-serif;
+  color: #fff;
+  background-color: #646cff;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 25%);
+  transition: background-color 0.2s;
+}
+
+button:hover:not(:disabled) {
+  background-color: #535bf2;
+}
+
+button:disabled {
+  opacity: 0.85;
+  cursor: default;
+}
