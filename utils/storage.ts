@@ -1,22 +1,8 @@
 import { storage } from 'wxt/utils/storage';
-import type { JobApplicationProfile } from '~/types/profile';
-
-/**
- * Creates a pristine, fully-structured profile with no user data.
- *
- * Returned fresh on every call so callers can safely mutate their copy
- * without affecting anything else. Contains no random values or timestamps,
- * keeping creation deterministic.
- */
-function createEmptyProfile(): JobApplicationProfile {
-  return {
-    personalInfo: {
-      firstName: '',
-      lastName: '',
-    },
-    updatedAt: null,
-  };
-}
+import {
+  createEmptyProfile,
+  type JobApplicationProfile,
+} from '~/types/profile';
 
 /**
  * The user's job application profile.
