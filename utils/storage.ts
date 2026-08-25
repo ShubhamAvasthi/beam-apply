@@ -8,7 +8,7 @@ import type { JobApplicationProfile } from '~/types/profile';
  * without affecting anything else. Contains no random values or timestamps,
  * keeping creation deterministic.
  */
-export function createEmptyProfile(): JobApplicationProfile {
+function createEmptyProfile(): JobApplicationProfile {
   return {
     personalInfo: {
       firstName: '',

@@ -1,6 +1,12 @@
+import { mountAutofillButton } from '@/components/autofill-button';
+
 export default defineContentScript({
-  matches: ['*://*.google.com/*'],
+  matches: [
+    'https://boards.greenhouse.io/*',
+    'https://job-boards.greenhouse.io/*',
+  ],
+  allFrames: true,
   main() {
-    console.log('Hello content.');
+    mountAutofillButton();
   },
 });
