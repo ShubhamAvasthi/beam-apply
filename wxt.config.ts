@@ -25,12 +25,12 @@ export default defineConfig({
       // Optional: set a minimum engine version if a specific fix is required.
       // strict_min_version: '120.0',
     },
-    icons: {
-      16: 'icon/16.png',
-      32: 'icon/32.png',
-      48: 'icon/48.png',
-      96: 'icon/96.png',
-      128: 'icon/128.png',
+            icons: {
+      16: '/icon/logo-only.svg',
+      32: '/icon/logo-only.svg',
+      48: '/icon/logo-only.svg',
+      96: '/icon/logo-full.svg',
+      128: '/icon/logo-full.svg',
     },
   },
 });

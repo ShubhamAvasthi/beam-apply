@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="chev1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a000d" />
+      <stop offset="100%" stop-color="#7a0c1e" />
+    </linearGradient>
+    <linearGradient id="chev2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8e0e24" />
+      <stop offset="100%" stop-color="#c41430" />
+    </linearGradient>
+    <linearGradient id="chev3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d61a38" />
+      <stop offset="100%" stop-color="#ff1e42" />
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(145, 120)">
+    <path d="M 0,0 L 40,0 L 90,65 L 40,130 L 0,130 L 50,65 Z" fill="url(#chev1)" />
+    <path d="M 60,0 L 100,0 L 150,65 L 100,130 L 60,130 L 110,65 Z" fill="url(#chev2)" />
+    <path d="M 120,0 L 160,0 L 210,65 L 160,130 L 120,130 L 170,65 Z" fill="url(#chev3)" />
+  </g>
+</svg>
