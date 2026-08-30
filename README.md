@@ -9,27 +9,27 @@ Make sure you have [Bun](https://bun.sh) installed.
 
 - **Start Development Server (Firefox):**
   ```bash
-  bun run dev
+  bun dev
   ```
 - **Start Development Server (Chrome):**
   ```bash
-  bun run dev:chrome
+  bun dev:chrome
   ```
 - **Type Check / Compile:**
   ```bash
-  bun run compile
+  bun compile
   ```
 - **Build Extension (Firefox):**
   ```bash
-  bun run build
+  bun build
   ```
 - **Build Extension (Chrome):**
   ```bash
-  bun run build:chrome
+  bun build:chrome
   ```
 - **Package Extension (Zip):**
   ```bash
-  bun run zip
+  bun zip
   ```
 
 ## Contributors
