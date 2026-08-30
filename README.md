@@ -5,29 +5,32 @@ A fast, deterministic, privacy-first browser extension for autofilling job appli
 
 Make sure you have [Bun](https://bun.sh) installed.
 
-### Available Scripts
-
-- **Start Development Server (Firefox):**
+### Development
+- **Start dev server (Firefox):**
   ```bash
   bun dev
   ```
-- **Start Development Server (Chrome):**
+- **Start dev server (Chrome):**
   ```bash
   bun dev:chrome
   ```
-- **Type Check / Compile:**
+
+### Quality & Type Checking
+- **Type check (TypeScript):**
   ```bash
   bun compile
   ```
-- **Build Extension (Firefox):**
+
+### Production & Distribution
+- **Build extension (Firefox):**
   ```bash
-  bun build
+  bun run build
   ```
-- **Build Extension (Chrome):**
+- **Build extension (Chrome):**
   ```bash
-  bun build:chrome
+  bun run build:chrome
   ```
-- **Package Extension (Zip):**
+- **Package extension into zip:**
   ```bash
   bun zip
   ```
