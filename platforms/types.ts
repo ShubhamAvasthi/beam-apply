@@ -17,9 +17,10 @@ export interface PlatformAdapter {
   readonly hosts: readonly string[];
   /**
    * Fill whatever profile fields this platform exposes. Returns the
-   * number of fields written (0 = nothing happened).
+   * number of fields written (0 = nothing happened). May be async —
+   * autocomplete dropdowns require waiting for the option to be clicked.
    *
    * Must never throw into the caller.
    */
-  autofill(profile: JobApplicationProfile): number;
+  autofill(profile: JobApplicationProfile): number | Promise<number>;
 }

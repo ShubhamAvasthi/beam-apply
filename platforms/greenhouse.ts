@@ -77,17 +77,25 @@ function locateEmptyField(
   return null;
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
- * For autocomplete fields like Greenhouse's location, typing the city
- * opens a dropdown of suggestions (e.g. "Bengaluru, Karnataka, India").
- * This simulates real human typing character-by-character so typeahead
- * debouncers and API fetch listeners trigger correctly, then clicks
- * the resulting visible dropdown option.
+ * For autocomplete typeahead fields (Greenhouse's location AND country),
+ * typing the value opens a dropdown of suggestions (e.g. "Bengaluru,
+ * Karnataka, India" or "United States"). This simulates real human typing
+ * character-by-character so typeahead debouncers and API fetch listeners
+ * trigger correctly, then clicks the resulting visible dropdown option.
+ *
+ * Resolves once the option is clicked (or retries are exhausted). Filling
+ * autocomplete fields sequentially matters: each field's dropdown closes the
+ * moment another input takes focus, so a later field must wait its turn.
  */
-function fillLocationWithAutocomplete(
+async function fillAutocomplete(
   input: HTMLInputElement,
-  targetLocation: string,
-): void {
+  targetText: string,
+): Promise<void> {
   input.focus();
 
   const proto = HTMLInputElement.prototype;
@@ -95,41 +103,58 @@ function fillLocationWithAutocomplete(
   descriptor?.set?.call(input, '');
   input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
 
-  let charIndex = 0;
+  // Track what we intend to type ourselves. Comboboxes like Greenhouse's
+  // country field may clear the input when the first keystroke opens the
+  // dropdown, so reading `input.value` back to append the next char would
+  // silently drop characters (a failed "India" → "ndia"). Re-asserting the
+  // full typed prefix on every tick keeps the field in sync regardless of
+  // transient widget resets.
+  let typed = '';
+  for (let charIndex = 0; charIndex < targetText.length; charIndex += 1) {
+    const char = targetText[charIndex];
+    typed += char;
+    descriptor?.set?.call(input, typed);
 
-  const typeNextChar = () => {
-    if (charIndex < targetLocation.length) {
-      const char = targetLocation[charIndex];
-      const currentVal = input.value + char;
-      descriptor?.set?.call(input, currentVal);
+    const inputEvent = new InputEvent('input', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: char,
+    });
+    input.dispatchEvent(inputEvent);
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: char, bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keyup', { key: char, bubbles: true }));
 
-      const inputEvent = new InputEvent('input', {
-        bubbles: true,
-        cancelable: true,
-        inputType: 'insertText',
-        data: char,
-      });
-      input.dispatchEvent(inputEvent);
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: char, bubbles: true }));
-      input.dispatchEvent(new KeyboardEvent('keyup', { key: char, bubbles: true }));
+    await wait(60); // 60ms between characters
+  }
 
-      charIndex++;
-      setTimeout(typeNextChar, 60); // 60ms between characters
-    } else {
-      setTimeout(() => findAndClickDropdownOption(0), 1000);
-    }
-  };
-
-  typeNextChar();
+  // Let the typeahead debounce + API fetch render the suggestions.
+  await wait(1000);
+  const clicked = await selectDropdownOption(targetText);
+  if (!clicked) {
+    console.warn(`${LOG_PREFIX} no dropdown option found for "${targetText}" after retries.`);
+  }
 }
 
-function findAndClickDropdownOption(attempts = 0) {
+/**
+ * Scans for a visible dropdown option for the typed value, preferring an
+ * exact text match, then a prefix match, then the first visible option.
+ */
+function locateDropdownOption(targetText: string): HTMLElement | null {
+  // `li.iti__country` is Greenhouse's intl-tel-input country picker (the
+  // dropdown item is e.g. `<li class="iti__country" data-country-code="in">
+  // <span class="iti__country-name">India</span> …
+  // <span class="iti__dial-code">+91</span></li>`).
   const selector =
-    'ul.ui-autocomplete li, .select2-results__option, .auto-complete-results li, [role="option"], .pac-item, li[id*="result"], div[class*="suggestion"], div[class*="option"], li[class*="suggestion"], .tt-suggestion, .option';
+    '.iti__country, ul.ui-autocomplete li, .select2-results__option, .auto-complete-results li, [role="option"], .pac-item, li[id*="result"], div[class*="suggestion"], div[class*="option"], li[class*="suggestion"], .tt-suggestion, .option';
   const potentialOptions = document.querySelectorAll<HTMLElement>(selector);
 
-  let targetOpt: HTMLElement | null = null;
+  let fallbackOpt: HTMLElement | null = null;
+  let prefixOpt: HTMLElement | null = null;
+  let exactOpt: HTMLElement | null = null;
+
+  const needle = targetText.trim().toLowerCase();
 
   for (const opt of potentialOptions) {
     const computed = window.getComputedStyle(opt);
@@ -141,30 +166,77 @@ function findAndClickDropdownOption(attempts = 0) {
       rect.width > 0 &&
       rect.height > 0;
 
-    if (isVisible) {
-      targetOpt = opt;
-      break;
+    if (!isVisible) continue;
+
+    if (!fallbackOpt) fallbackOpt = opt;
+    if (!needle) continue;
+
+    // intl-tel-input items contain the country name AND the dial code
+    // ("India+91"). Match against the visible country-name span so "india"
+    // is an exact match instead of being polluted by "+91".
+    const nameEl = opt.classList.contains('iti__country')
+      ? opt.querySelector<HTMLElement>('.iti__country-name')
+      : null;
+    const text = (nameEl?.textContent ?? opt.textContent ?? '').trim().toLowerCase();
+
+    // Prefer the option that exactly matches what we typed, then one that
+    // starts with it, before the first visible suggestion.
+    if (text === needle && !exactOpt) {
+      exactOpt = opt;
+    } else if (text.startsWith(needle) && !prefixOpt) {
+      prefixOpt = opt;
     }
   }
 
-  if (targetOpt) {
-    const rect = targetOpt.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + rect.height / 2;
-    const topmostEl = document.elementFromPoint(x, y) || targetOpt;
+  return exactOpt ?? prefixOpt ?? fallbackOpt;
+}
 
-    topmostEl.dispatchEvent(
-      new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }),
+/** Simulates a genuine glyph-level mouse gesture on the dropdown option. */
+function clickDropdownOption(option: HTMLElement): void {
+  const rect = option.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+
+  const fireMouse = (el: Element, type: string): void => {
+    el.dispatchEvent(
+      new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: x,
+        clientY: y,
+      }),
     );
-    topmostEl.dispatchEvent(
-      new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }),
-    );
-    topmostEl.dispatchEvent(
-      new MouseEvent('click', { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }),
-    );
-  } else if (attempts < 4) {
-    setTimeout(() => findAndClickDropdownOption(attempts + 1), 400);
+  };
+
+  // Widgets like intl-tel-input select on `mousedown` (before the input
+  // blur beats the click), so dispatch the full gesture at the item's
+  // real coordinates.
+  const topmostEl = document.elementFromPoint(x, y) || option;
+  fireMouse(topmostEl, 'mousedown');
+  fireMouse(topmostEl, 'mouseup');
+  fireMouse(topmostEl, 'click');
+
+  // intl-tel-input binds selection on the <li>, so when the topmost element
+  // is a child (flag/name span) that swallowed the gesture, also click the
+  // <li> directly. Plain autocompletes select via the bubbling gesture
+  // alone — keep this safety net iti-only.
+  if (topmostEl !== option && option.classList.contains('iti__country')) {
+    fireMouse(option, 'click');
   }
+}
+
+/** Polls the dropdown for up to ~1.6s and clicks the matching option. */
+async function selectDropdownOption(targetText: string): Promise<boolean> {
+  for (let attempts = 0; attempts < 5; attempts += 1) {
+    const option = locateDropdownOption(targetText);
+    if (option) {
+      clickDropdownOption(option);
+      return true;
+    }
+    await wait(400);
+  }
+  return false;
 }
 
 /**
@@ -202,9 +274,9 @@ function attachResume(input: HTMLInputElement, resume: ResumeFile): boolean {
 }
 
 /** Fills whatever supported fields exist right now; returns the elements written. */
-function fillNow(
+async function fillNow(
   profile: JobApplicationProfile,
-): Array<HTMLInputElement | HTMLSelectElement> {
+): Promise<Array<HTMLInputElement | HTMLSelectElement>> {
   const filled: Array<HTMLInputElement | HTMLSelectElement> = [];
 
   const targets: Array<{ selectors: readonly string[]; value: string }> = [
@@ -221,8 +293,13 @@ function fillNow(
 
     const el = locateEmptyField(selectors);
     if (el) {
-      if (selectors === LOCATORS.location && el instanceof HTMLInputElement) {
-        fillLocationWithAutocomplete(el, value);
+      if (
+        (selectors === LOCATORS.country || selectors === LOCATORS.location) &&
+        el instanceof HTMLInputElement
+      ) {
+        // Await completion — focusing the next field would blur and close
+        // this field's dropdown before its option gets clicked.
+        await fillAutocomplete(el, value);
       } else {
         setFieldValue(el, value);
       }
@@ -249,8 +326,8 @@ export const greenhouseAdapter: PlatformAdapter = {
   hosts: ['boards.greenhouse.io', 'job-boards.greenhouse.io'],
 
   /** Runs on button click — every init race on the page is over by then. */
-  autofill(profile) {
-    const filledCount = fillNow(profile).length;
+  async autofill(profile) {
+    const filledCount = (await fillNow(profile)).length;
     if (filledCount === 0) {
       console.info(`${LOG_PREFIX} nothing to fill.`);
     } else {

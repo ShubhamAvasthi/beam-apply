@@ -51,7 +51,7 @@ async function fillFromProfile(button: HTMLButtonElement): Promise<void> {
   if (!adapter) return;
 
   const profile = await profileStorage.getValue();
-  const filledCount = adapter.autofill(profile);
+  const filledCount = await adapter.autofill(profile);
   if (filledCount > 0) {
     button.disabled = true;
     button.textContent = FILLED_LABEL;
