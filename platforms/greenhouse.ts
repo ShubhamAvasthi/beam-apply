@@ -2,13 +2,14 @@ import type { JobApplicationProfile } from '~/types/profile';
 import type { PlatformAdapter } from './types';
 
 /**
- * Locators tried in order; first hit wins. These target Greenhouse's
- * standard application form (`#first_name` / `#last_name`) with attribute
+ * Fields we can fill on Greenhouse, keyed by profile field. Each entry
+ * lists locators tried in order — first hit wins — with attribute
  * fallbacks in case the ids ever change.
  */
 const LOCATORS = {
   firstName: ['#first_name', 'input[name="first_name"]'],
   lastName: ['#last_name', 'input[name="last_name"]'],
+  email: ['#email', 'input[name="email"]'],
 } as const;
 
 const LOG_PREFIX = '[BeamApply/greenhouse]';
@@ -46,20 +47,24 @@ function locateEmptyField(
   return null;
 }
 
-/** Fills whatever name fields exist right now; returns them. */
+/** Fills whatever supported fields exist right now; returns the inputs written. */
 function fillNow(profile: JobApplicationProfile): HTMLInputElement[] {
   const filled: HTMLInputElement[] = [];
 
-  const firstNameInput = locateEmptyField(LOCATORS.firstName);
-  if (firstNameInput && profile.personalInfo.firstName !== '') {
-    setInputValue(firstNameInput, profile.personalInfo.firstName);
-    filled.push(firstNameInput);
-  }
+  const targets: Array<{ selectors: readonly string[]; value: string }> = [
+    { selectors: LOCATORS.firstName, value: profile.personalInfo.firstName },
+    { selectors: LOCATORS.lastName, value: profile.personalInfo.lastName },
+    { selectors: LOCATORS.email, value: profile.personalInfo.email },
+  ];
 
-  const lastNameInput = locateEmptyField(LOCATORS.lastName);
-  if (lastNameInput && profile.personalInfo.lastName !== '') {
-    setInputValue(lastNameInput, profile.personalInfo.lastName);
-    filled.push(lastNameInput);
+  for (const { selectors, value } of targets) {
+    if (value === '') continue; // nothing in the profile for this field
+
+    const input = locateEmptyField(selectors);
+    if (input) {
+      setInputValue(input, value);
+      filled.push(input);
+    }
   }
 
   return filled;

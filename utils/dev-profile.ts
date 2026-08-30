@@ -12,6 +12,7 @@ export const DEV_TEST_PROFILE: JobApplicationProfile = {
   personalInfo: {
     firstName: 'John',
     lastName: 'Doe',
+    email: 'john.doe@example.com',
   },
   updatedAt: null,
 };

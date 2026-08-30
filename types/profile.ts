@@ -5,8 +5,10 @@
  * - Dates will be ISO 8601 strings when date fields are introduced —
  *   JSON-serializable and stable across contexts. Never store `Date`
  *   objects in extension storage.
- * - Fields a user may legitimately leave blank will be `T | null`, never
- *   optional (`undefined` keys are silently dropped by JSON serialization).
+ * - Fields are required by default: plain `string` with an empty `''`
+ *   default. A field becomes `T | null` only when a real form allows it
+ *   to be optional (`undefined` keys are silently dropped by JSON
+ *   serialization).
  * - No analytics, tracking, or device identifiers are part of this model.
  */
 
@@ -30,6 +32,7 @@ const EMPTY_PROFILE = {
   personalInfo: {
     firstName: '',
     lastName: '',
+    email: '',
   },
   updatedAt: null as string | null,
 };

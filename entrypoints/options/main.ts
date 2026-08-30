@@ -6,6 +6,7 @@ import { profileStorage } from '@/utils/storage';
 const form = document.querySelector<HTMLFormElement>('#profile-form')!;
 const firstName = document.querySelector<HTMLInputElement>('#first-name')!;
 const lastName = document.querySelector<HTMLInputElement>('#last-name')!;
+const email = document.querySelector<HTMLInputElement>('#email')!;
 const status = document.querySelector<HTMLSpanElement>('#status')!;
 const savedAt = document.querySelector<HTMLElement>('#saved-at')!;
 
@@ -36,7 +37,11 @@ form.addEventListener('submit', (event) => {
   event.preventDefault();
   void (async () => {
     const profile: JobApplicationProfile = {
-      personalInfo: { firstName: firstName.value, lastName: lastName.value },
+      personalInfo: {
+        firstName: firstName.value,
+        lastName: lastName.value,
+        email: email.value,
+      },
       updatedAt: new Date().toISOString(),
     };
     try {
@@ -54,4 +59,5 @@ form.addEventListener('submit', (event) => {
 const stored = await profileStorage.getValue();
 firstName.value = stored.personalInfo.firstName;
 lastName.value = stored.personalInfo.lastName;
+email.value = stored.personalInfo.email;
 updateSavedAt(stored);
