@@ -35,6 +35,7 @@ const EMPTY_PROFILE = {
     email: '',
     phone: '',
     country: '',
+    location: '',
   },
   updatedAt: null as string | null,
 };

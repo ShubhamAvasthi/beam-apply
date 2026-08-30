@@ -9,6 +9,7 @@ const lastName = document.querySelector<HTMLInputElement>('#last-name')!;
 const email = document.querySelector<HTMLInputElement>('#email')!;
 const phone = document.querySelector<HTMLInputElement>('#phone')!;
 const country = document.querySelector<HTMLSelectElement>('#country')!;
+const locationInput = document.querySelector<HTMLInputElement>('#location')!;
 const status = document.querySelector<HTMLSpanElement>('#status')!;
 const savedAt = document.querySelector<HTMLElement>('#saved-at')!;
 
@@ -45,6 +46,7 @@ form.addEventListener('submit', (event) => {
         email: email.value,
         phone: phone.value,
         country: country.value,
+        location: locationInput.value,
       },
       updatedAt: new Date().toISOString(),
     };
@@ -66,4 +68,5 @@ lastName.value = stored.personalInfo.lastName;
 email.value = stored.personalInfo.email;
 phone.value = stored.personalInfo.phone;
 country.value = stored.personalInfo.country;
+locationInput.value = stored.personalInfo.location;
 updateSavedAt(stored);
