@@ -37,8 +37,15 @@ const MAX_RESUME_BYTES = 5 * 1000 * 1000; // decimal 5 MB, matching the Intl.Num
  * Native byte formatting: `notation: 'compact'` handles the KB/MB scale
  * tiers and `unitDisplay: 'narrow'` yields terse units ("1.5KB", "1MB").
  * Decimal (1000) scale — perfectly fine for an informational size label.
+ *
+ * The locale is pinned to `en-US`. With `undefined`, locales using the
+ * Indian number system (e.g. `en-IN`) compact-scale by lakh/crore with the
+ * symbols "L"/"Cr", producing labels like "1.4LB" that read as "1.4 lb"
+ * (pounds); most other locales emit long forms ("1,4 Mio. B", "1.4MlnB").
+ * Byte sizes are universally read with K/M/G suffixes, so a fixed locale
+ * keeps the output clean and deterministic for every user.
  */
-const byteFormatter = new Intl.NumberFormat(undefined, {
+const byteFormatter = new Intl.NumberFormat('en-US', {
   style: 'unit',
   unit: 'byte',
   notation: 'compact',
