@@ -97,3 +97,56 @@ export function isResumeFile(value: unknown): value is ResumeFile {
     typeof candidate.base64 === 'string'
   );
 }
+
+/**
+ * Profile fields the user is *allowed* to leave empty. Everything else in
+ * `personalInfo` is REQUIRED for autofill.
+ *
+ * A required field added to {@link EMPTY_PROFILE} automatically becomes
+ * "missing" for any already-saved profile — that is what lets the UI force
+ * the user to update their stored profile after a schema change, without
+ * formal versioning yet. Only add a field here when we intentionally allow
+ * it to stay blank.
+ */
+const OPTIONAL_PERSONAL_INFO_FIELDS = new Set<keyof PersonalInfo>([]);
+
+/**
+ * The `personalInfo` fields missing from the given profile, in declaration
+ * order (empty array = complete). A field counts as missing when its stored
+ * value is empty/`null`/absent (or an empty array), or when it's a `resume`
+ * that isn't a well-formed {@link ResumeFile} — older profiles saved a
+ * plain string there.
+ */
+export function getMissingProfileFields(
+  profile: JobApplicationProfile,
+): Array<keyof PersonalInfo> {
+  const missing: Array<keyof PersonalInfo> = [];
+  const personalInfo = profile.personalInfo as Partial<PersonalInfo> | undefined;
+
+  for (const field of Object.keys(
+    EMPTY_PROFILE.personalInfo,
+  ) as Array<keyof PersonalInfo>) {
+    if (OPTIONAL_PERSONAL_INFO_FIELDS.has(field)) continue;
+
+    const value = personalInfo?.[field];
+    const isEmpty =
+      value === '' ||
+      value === null ||
+      value === undefined ||
+      (Array.isArray(value) && value.length === 0);
+    const isInvalidResume =
+      field === 'resume' &&
+      value !== null &&
+      value !== undefined &&
+      !isResumeFile(value);
+
+    if (isEmpty || isInvalidResume) missing.push(field);
+  }
+
+  return missing;
+}
+
+/** True when every required {@link PersonalInfo} field is filled in. */
+export function isProfileComplete(profile: JobApplicationProfile): boolean {
+  return getMissingProfileFields(profile).length === 0;
+}

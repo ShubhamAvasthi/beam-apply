@@ -1,8 +1,10 @@
 import '@picocss/pico/css/pico.min.css';
 
 import {
+  getMissingProfileFields,
   isResumeFile,
   type JobApplicationProfile,
+  type PersonalInfo,
   type ResumeFile,
 } from '@/types/profile';
 import { profileStorage } from '@/utils/storage';
@@ -169,3 +171,35 @@ if (isResumeFile(stored.personalInfo.resume)) {
 }
 renderResume();
 updateSavedAt(stored);
+
+// Field boundary is the single form; resume is guided inline instead (the
+// "No resume selected — a resume is required." text under the picker).
+const fieldElements: Record<keyof PersonalInfo, HTMLElement | null> = {
+  firstName,
+  lastName,
+  email,
+  phone,
+  country,
+  location: locationInput,
+  resume: null,
+};
+
+// Schema guard: after a new required field is added, older stored profiles
+// are missing it. Banner + highlighting guide the fix; autofill stays
+// blocked (see components/autofill-button.ts) until the profile is saved.
+const missing = getMissingProfileFields(stored);
+if (missing.length > 0) {
+  status.textContent =
+    `Missing required: ${missing.join(', ')}. Fill them below and save to unlock autofill.`;
+  status.style.color = '#f87171';
+  clearTimeout(statusTimer);
+  statusTimer = undefined;
+  for (const field of missing) fieldElements[field]?.setAttribute('aria-invalid', 'true');
+}
+
+// Clear the "invalid" styling as the user fixes each field.
+form.addEventListener('input', () => {
+  for (const el of form.querySelectorAll('[aria-invalid="true"]')) {
+    el.removeAttribute('aria-invalid');
+  }
+});
