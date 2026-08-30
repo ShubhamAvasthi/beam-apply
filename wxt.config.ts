@@ -7,7 +7,6 @@ export default defineConfig({
     name: 'BeamApply',
     description: 'One-click autofill for job applications. Local-first, no accounts.',
     version: '1.0.0',
-    defaultLocale: 'en',
     permissions: ['storage', 'unlimitedStorage'],
     browser_specific_settings: {
       gecko: {
