@@ -42,6 +42,26 @@
             <input id="email" type="email" autocomplete="email" required />
           </label>
 
+          <div class="grid">
+            <label for="phone">
+              Phone
+              <input id="phone" type="tel" autocomplete="tel" required />
+            </label>
+            <label for="country">
+              Country
+              <select id="country" autocomplete="country" required>
+                <option value="" disabled selected>Select country...</option>
+                <option value="United States">United States</option>
+                <option value="United Kingdom">United Kingdom</option>
+                <option value="Canada">Canada</option>
+                <option value="Australia">Australia</option>
+                <option value="Germany">Germany</option>
+                <option value="India">India</option>
+                <option value="France">France</option>
+              </select>
+            </label>
+          </div>
+
           <p><span id="status" role="status"></span></p>
           <p><small id="saved-at">Not saved yet</small></p>
 

@@ -7,6 +7,8 @@ const form = document.querySelector<HTMLFormElement>('#profile-form')!;
 const firstName = document.querySelector<HTMLInputElement>('#first-name')!;
 const lastName = document.querySelector<HTMLInputElement>('#last-name')!;
 const email = document.querySelector<HTMLInputElement>('#email')!;
+const phone = document.querySelector<HTMLInputElement>('#phone')!;
+const country = document.querySelector<HTMLSelectElement>('#country')!;
 const status = document.querySelector<HTMLSpanElement>('#status')!;
 const savedAt = document.querySelector<HTMLElement>('#saved-at')!;
 
@@ -41,6 +43,8 @@ form.addEventListener('submit', (event) => {
         firstName: firstName.value,
         lastName: lastName.value,
         email: email.value,
+        phone: phone.value,
+        country: country.value,
       },
       updatedAt: new Date().toISOString(),
     };
@@ -60,4 +64,6 @@ const stored = await profileStorage.getValue();
 firstName.value = stored.personalInfo.firstName;
 lastName.value = stored.personalInfo.lastName;
 email.value = stored.personalInfo.email;
+phone.value = stored.personalInfo.phone;
+country.value = stored.personalInfo.country;
 updateSavedAt(stored);

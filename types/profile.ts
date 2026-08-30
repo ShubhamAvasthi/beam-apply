@@ -33,6 +33,8 @@ const EMPTY_PROFILE = {
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
+    country: '',
   },
   updatedAt: null as string | null,
 };

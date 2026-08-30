@@ -13,6 +13,8 @@ export const DEV_TEST_PROFILE: JobApplicationProfile = {
     firstName: 'John',
     lastName: 'Doe',
     email: 'john.doe@example.com',
+    phone: '+1 (555) 019-2834',
+    country: 'United States',
   },
   updatedAt: null,
 };

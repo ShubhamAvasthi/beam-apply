@@ -10,6 +10,13 @@ const LOCATORS = {
   firstName: ['#first_name', 'input[name="first_name"]'],
   lastName: ['#last_name', 'input[name="last_name"]'],
   email: ['#email', 'input[name="email"]'],
+  phone: ['#phone', 'input[name="phone"]', 'input[name*="phone"]'],
+  country: [
+    '#country',
+    'select[name="country"]',
+    'select[name*="country"]',
+    'select[aria-label*="Country"]',
+  ],
 } as const;
 
 const LOG_PREFIX = '[BeamApply/greenhouse]';
@@ -21,16 +28,20 @@ const LOG_PREFIX = '[BeamApply/greenhouse]';
  * never reaches their state or is silently reverted on the next render
  * (which is exactly what we saw on Greenhouse). Setting via the
  * prototype descriptor plus bubbling `input`/`change` reads as a
- * genuine user edit.
+ * genuine user edit. Supports both inputs and select dropdowns.
  */
-function setInputValue(input: HTMLInputElement, value: string): void {
-  const descriptor = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    'value',
-  );
-  descriptor?.set?.call(input, value);
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  input.dispatchEvent(new Event('change', { bubbles: true }));
+function setFieldValue(
+  element: HTMLInputElement | HTMLSelectElement,
+  value: string,
+): void {
+  const proto =
+    element instanceof HTMLSelectElement
+      ? HTMLSelectElement.prototype
+      : HTMLInputElement.prototype;
+  const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+  descriptor?.set?.call(element, value);
+  element.dispatchEvent(new Event('input', { bubbles: true }));
+  element.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 /**
@@ -39,31 +50,37 @@ function setInputValue(input: HTMLInputElement, value: string): void {
  */
 function locateEmptyField(
   selectors: readonly string[],
-): HTMLInputElement | null {
+): HTMLInputElement | HTMLSelectElement | null {
   for (const selector of selectors) {
-    const input = document.querySelector<HTMLInputElement>(selector);
-    if (input && input.value.trim() === '') return input;
+    const el = document.querySelector<HTMLInputElement | HTMLSelectElement>(
+      selector,
+    );
+    if (el && el.value.trim() === '') return el;
   }
   return null;
 }
 
-/** Fills whatever supported fields exist right now; returns the inputs written. */
-function fillNow(profile: JobApplicationProfile): HTMLInputElement[] {
-  const filled: HTMLInputElement[] = [];
+/** Fills whatever supported fields exist right now; returns the elements written. */
+function fillNow(
+  profile: JobApplicationProfile,
+): Array<HTMLInputElement | HTMLSelectElement> {
+  const filled: Array<HTMLInputElement | HTMLSelectElement> = [];
 
   const targets: Array<{ selectors: readonly string[]; value: string }> = [
     { selectors: LOCATORS.firstName, value: profile.personalInfo.firstName },
     { selectors: LOCATORS.lastName, value: profile.personalInfo.lastName },
     { selectors: LOCATORS.email, value: profile.personalInfo.email },
+    { selectors: LOCATORS.phone, value: profile.personalInfo.phone },
+    { selectors: LOCATORS.country, value: profile.personalInfo.country },
   ];
 
   for (const { selectors, value } of targets) {
     if (value === '') continue; // nothing in the profile for this field
 
-    const input = locateEmptyField(selectors);
-    if (input) {
-      setInputValue(input, value);
-      filled.push(input);
+    const el = locateEmptyField(selectors);
+    if (el) {
+      setFieldValue(el, value);
+      filled.push(el);
     }
   }
 
