@@ -67,6 +67,22 @@
             <input id="location" type="text" autocomplete="address-level2" required />
           </label>
 
+          <label for="resume">
+            Resume
+            <input
+              id="resume"
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.rtf,.md"
+              aria-required="true"
+            />
+          </label>
+          <p>
+            <small id="resume-name">No resume selected.</small>
+            <button id="resume-remove" type="button" class="secondary outline" hidden>
+              Remove resume
+            </button>
+          </p>
+
           <p><span id="status" role="status"></span></p>
           <p><small id="saved-at">Not saved yet</small></p>
 

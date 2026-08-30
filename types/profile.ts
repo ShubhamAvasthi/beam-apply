@@ -28,6 +28,25 @@
  * - `''` (or `[]`) widen to the mutable type when referenced.
  * - `null as X | null` keeps a nullable field’s type.
  */
+/**
+ * A resume file attached to the profile.
+ *
+ * The raw bytes are persisted as a base64 string (no `data:` prefix) so the
+ * whole profile stays JSON-serializable under `browser.storage.local`. The
+ * platform adapters rebuild a real `File` from these bytes at autofill time
+ * and attach it to the requisition's upload field.
+ */
+export interface ResumeFile {
+  /** Original file name on disk, e.g. "john-doe-resume.pdf". */
+  name: string;
+  /** MIME type reported by the OS when the file was picked. */
+  mimeType: string;
+  /** Size in bytes. */
+  size: number;
+  /** Base64-encoded file content — no prefix, no line breaks. */
+  base64: string;
+}
+
 const EMPTY_PROFILE = {
   personalInfo: {
     firstName: '',
@@ -36,6 +55,7 @@ const EMPTY_PROFILE = {
     phone: '',
     country: '',
     location: '',
+    resume: null as ResumeFile | null,
   },
   updatedAt: null as string | null,
 };
@@ -60,4 +80,20 @@ export type JobApplicationProfile = typeof EMPTY_PROFILE;
  */
 export function createEmptyProfile(): JobApplicationProfile {
   return structuredClone(EMPTY_PROFILE);
+}
+
+/**
+ * Runtime check for a stored `resume` value. Older profiles saved `resume`
+ * as an empty string, so adapters and the options page must not assume the
+ * new object shape before touching it.
+ */
+export function isResumeFile(value: unknown): value is ResumeFile {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as ResumeFile;
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.mimeType === 'string' &&
+    typeof candidate.size === 'number' &&
+    typeof candidate.base64 === 'string'
+  );
 }

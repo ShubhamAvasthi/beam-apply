@@ -16,6 +16,12 @@ export const DEV_TEST_PROFILE: JobApplicationProfile = {
     phone: '+1 (555) 019-2834',
     country: 'United States',
     location: 'San Francisco, CA',
+    resume: {
+      name: 'John_Doe_Resume.pdf',
+      mimeType: 'application/pdf',
+      size: 6,
+      base64: 'cmVzdW1l', // "resume" — stand-in bytes, dev fixture only
+    },
   },
   updatedAt: null,
 };

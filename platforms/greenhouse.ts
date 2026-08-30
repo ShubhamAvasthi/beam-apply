@@ -1,4 +1,8 @@
-import type { JobApplicationProfile } from '~/types/profile';
+import {
+  isResumeFile,
+  type JobApplicationProfile,
+  type ResumeFile,
+} from '~/types/profile';
 import type { PlatformAdapter } from './types';
 
 /**
@@ -23,6 +27,12 @@ const LOCATORS = {
     'input[name="job_application[location]"]',
     'input[name*="location"]',
     'input[id*="location"]',
+  ],
+  resume: [
+    'input[type="file"][name*="resume" i]',
+    'input[type="file"][id*="resume" i]',
+    '#resume',
+    'input[name*="resume" i]',
   ],
 } as const;
 
@@ -157,6 +167,40 @@ function findAndClickDropdownOption(attempts = 0) {
   }
 }
 
+/**
+ * Attaches the stored resume to a file input.
+ *
+ * Browsers block assigning a path to `input.value`, and `input.files` can
+ * only accept a `FileList` produced from user interaction or a
+ * `DataTransfer`. We rebuild the original `File` from the stored base64 and
+ * feed it through a `DataTransfer` — the same technique file-attaching
+ * extensions use — then dispatch `input`/`change` so framework listeners
+ * (e.g. React) see the upload.
+ */
+function attachResume(input: HTMLInputElement, resume: ResumeFile): boolean {
+  if (input.files && input.files.length > 0) {
+    console.info(`${LOG_PREFIX} resume already attached — leaving it untouched.`);
+    return false;
+  }
+
+  const binary = atob(resume.base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+
+  const file = new File([bytes], resume.name, { type: resume.mimeType });
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+
+  input.files = dataTransfer.files;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+
+  console.info(
+    `${LOG_PREFIX} attached resume "${resume.name}" (${resume.size} bytes).`,
+  );
+  return true;
+}
+
 /** Fills whatever supported fields exist right now; returns the elements written. */
 function fillNow(
   profile: JobApplicationProfile,
@@ -183,6 +227,17 @@ function fillNow(
         setFieldValue(el, value);
       }
       filled.push(el);
+    }
+  }
+
+  // Resume is a file, not a text value — attach it to the upload input.
+  const resume = profile.personalInfo.resume;
+  if (isResumeFile(resume)) {
+    for (const selector of LOCATORS.resume) {
+      const input = document.querySelector<HTMLInputElement>(selector);
+      if (!input || input.type !== 'file') continue;
+      if (attachResume(input, resume)) filled.push(input);
+      break;
     }
   }
 

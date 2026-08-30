@@ -4,6 +4,6 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   browser: 'firefox',
   manifest: {
-    permissions: ['storage'],
+    permissions: ['storage', 'unlimitedStorage'],
   },
 });

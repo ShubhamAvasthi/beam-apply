@@ -1,6 +1,10 @@
 import '@picocss/pico/css/pico.min.css';
 
-import type { JobApplicationProfile } from '@/types/profile';
+import {
+  isResumeFile,
+  type JobApplicationProfile,
+  type ResumeFile,
+} from '@/types/profile';
 import { profileStorage } from '@/utils/storage';
 
 const form = document.querySelector<HTMLFormElement>('#profile-form')!;
@@ -10,6 +14,9 @@ const email = document.querySelector<HTMLInputElement>('#email')!;
 const phone = document.querySelector<HTMLInputElement>('#phone')!;
 const country = document.querySelector<HTMLSelectElement>('#country')!;
 const locationInput = document.querySelector<HTMLInputElement>('#location')!;
+const resumeInput = document.querySelector<HTMLInputElement>('#resume')!;
+const resumeName = document.querySelector<HTMLElement>('#resume-name')!;
+const resumeRemove = document.querySelector<HTMLButtonElement>('#resume-remove')!;
 const status = document.querySelector<HTMLSpanElement>('#status')!;
 const savedAt = document.querySelector<HTMLElement>('#saved-at')!;
 
@@ -19,6 +26,46 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Resume currently staged in the form (in memory until "Save changes"). */
+let selectedResume: ResumeFile | null = null;
+
+/** Keep stored profiles inside browser.storage quotas — base64 inflates ~33%. */
+const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Reads a picked file into a {@link ResumeFile} (base64 content included). */
+function readResumeFile(file: File): Promise<ResumeFile> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+      resolve({
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+        base64: dataUrl.slice(dataUrl.indexOf(',') + 1),
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderResume(): void {
+  if (selectedResume) {
+    resumeName.textContent = `${selectedResume.name} (${formatBytes(selectedResume.size)})`;
+    resumeRemove.hidden = false;
+  } else {
+    resumeName.textContent = 'No resume selected — a resume is required.';
+    resumeRemove.hidden = true;
+  }
+}
 
 function flash(message: string, color?: string): void {
   status.textContent = message;
@@ -36,9 +83,39 @@ function updateSavedAt(profile: JobApplicationProfile): void {
     : 'Not saved yet';
 }
 
+resumeInput.addEventListener('change', () => {
+  const file = resumeInput.files?.[0];
+  if (!file) return;
+  void (async () => {
+    if (file.size > MAX_RESUME_BYTES) {
+      resumeInput.value = '';
+      flash('Resume must be under 5 MB', '#f87171');
+      return;
+    }
+    try {
+      selectedResume = await readResumeFile(file);
+      renderResume();
+    } catch (error) {
+      console.error('BeamApply: failed to read resume', error);
+      flash('Failed to read resume', '#f87171');
+    }
+  })();
+});
+
+resumeRemove.addEventListener('click', () => {
+  selectedResume = null;
+  resumeInput.value = '';
+  renderResume();
+});
+
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   void (async () => {
+    if (!selectedResume) {
+      flash('Please select a resume first — it is required.', '#f87171');
+      return;
+    }
+
     const profile: JobApplicationProfile = {
       personalInfo: {
         firstName: firstName.value,
@@ -47,6 +124,7 @@ form.addEventListener('submit', (event) => {
         phone: phone.value,
         country: country.value,
         location: locationInput.value,
+        resume: selectedResume,
       },
       updatedAt: new Date().toISOString(),
     };
@@ -69,4 +147,8 @@ email.value = stored.personalInfo.email;
 phone.value = stored.personalInfo.phone;
 country.value = stored.personalInfo.country;
 locationInput.value = stored.personalInfo.location;
+if (isResumeFile(stored.personalInfo.resume)) {
+  selectedResume = stored.personalInfo.resume;
+}
+renderResume();
 updateSavedAt(stored);
