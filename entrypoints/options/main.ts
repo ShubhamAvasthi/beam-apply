@@ -31,12 +31,22 @@ let statusTimer: ReturnType<typeof setTimeout> | undefined;
 let selectedResume: ResumeFile | null = null;
 
 /** Keep stored profiles inside browser.storage quotas — base64 inflates ~33%. */
-const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+const MAX_RESUME_BYTES = 5 * 1000 * 1000; // decimal 5 MB, matching the Intl.NumberFormat display scale
+
+/**
+ * Native byte formatting: `notation: 'compact'` handles the KB/MB scale
+ * tiers and `unitDisplay: 'narrow'` yields terse units ("1.5KB", "1MB").
+ * Decimal (1000) scale — perfectly fine for an informational size label.
+ */
+const byteFormatter = new Intl.NumberFormat(undefined, {
+  style: 'unit',
+  unit: 'byte',
+  notation: 'compact',
+  unitDisplay: 'narrow',
+});
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return byteFormatter.format(bytes);
 }
 
 /** Reads a picked file into a {@link ResumeFile} (base64 content included). */
