@@ -20,12 +20,12 @@ export default defineConfig({
         // all new extensions (policy since Nov 3, 2025). BeamApply sends
         // nothing off-device, so declare the minimum explicitly to prevent
         // future permission drift from breaking review.
-        data_collection_permissions: ['none'],
+        data_collection_permissions: { required: ['none'] },
       },
       // Optional: set a minimum engine version if a specific fix is required.
       // strict_min_version: '120.0',
     },
-            icons: {
+    icons: {
       16: '/icon/logo-only.svg',
       32: '/icon/logo-only.svg',
       48: '/icon/logo-only.svg',
