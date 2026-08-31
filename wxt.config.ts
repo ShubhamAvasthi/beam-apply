@@ -3,6 +3,8 @@ import { defineConfig } from 'wxt';
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   browser: 'firefox',
+  // AMO requires MV3 for new submissions; override Firefox's MV2 default.
+  manifestVersion: 3,
   manifest: {
     name: 'BeamApply',
     description: 'One-click autofill for job applications. Local-first, no accounts.',
@@ -20,9 +22,16 @@ export default defineConfig({
         // nothing off-device, so declare the minimum explicitly to prevent
         // future permission drift from breaking review.
         data_collection_permissions: { required: ['none'] },
+        // The data-collection key only exists in Firefox 140+ — web-ext lint
+        // requires the declared minimum to be >= the oldest engine that can
+        // parse every manifest key we ship. 140 is also the current ESR line.
+        strict_min_version: '140.0',
       },
-      // Optional: set a minimum engine version if a specific fix is required.
-      // strict_min_version: '120.0',
+      // Firefox for Android gained the data-collection key in 142; desktop
+      // stays on the 140 ESR.
+      gecko_android: {
+        strict_min_version: '142.0',
+      },
     },
     icons: {
       16: '/icon/logo-only.svg',
