@@ -10,11 +10,11 @@ export default defineConfig({
     permissions: ['storage', 'unlimitedStorage'],
     browser_specific_settings: {
       gecko: {
-        // Fixed ID for AMO (required; ties to your GitHub identity).
-        // Do NOT ship a random GUID here — it can't be rotated on resubmit.
-        // Provisional example you might use elsewhere:
-        //   {3a19d239-c143-484a-93c8-4b45274d2a52}
-        id: 'beamapply-autofill@shubhamavasthi.github.io',
+        // Fixed, product-owned ID for AMO (required). Encodes a domain we
+        // control — beamapply.com must stay renewed for as long as the
+        // extension exists. Do NOT change this after the first AMO
+        // submission: a new ID is treated as a different add-on.
+        id: 'beamapply@beamapply.com',
         // Firefox/AMO requires an explicit data-collection declaration for
         // all new extensions (policy since Nov 3, 2025). BeamApply sends
         // nothing off-device, so declare the minimum explicitly to prevent
