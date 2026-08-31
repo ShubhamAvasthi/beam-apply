@@ -14,7 +14,7 @@
     </linearGradient>
   </defs>
 
-  <g transform="translate(150, 191)">
+  <g transform="translate(10, 103) scale(2.34)">
     <path d="M 0,0 L 40,0 L 90,65 L 40,130 L 0,130 L 50,65 Z" fill="url(#chev1)" />
     <path d="M 60,0 L 100,0 L 150,65 L 100,130 L 60,130 L 110,65 Z" fill="url(#chev2)" />
     <path d="M 120,0 L 160,0 L 210,65 L 160,130 L 120,130 L 170,65 Z" fill="url(#chev3)" />
