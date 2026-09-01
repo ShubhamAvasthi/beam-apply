@@ -7,7 +7,7 @@ export default defineConfig({
   manifestVersion: 3,
   manifest: {
     name: 'BeamApply',
-    description: 'One-click autofill for job applications. Local-first, no accounts.',
+    description: 'A fast, deterministic, privacy-first browser extension for autofilling job applications.',
     version: '1.0.0',
     permissions: ['storage', 'unlimitedStorage'],
     browser_specific_settings: {
