@@ -9,6 +9,10 @@ export default defineConfig({
     name: 'BeamApply',
     description: 'A fast, deterministic, privacy-first browser extension for autofilling job applications.',
     version: '1.0.0',
+    // Firefox's recommended way to identify the developer (MDN: name/url
+    // override the `author` and `homepage_url` keys). Absent from WXT's
+    // Chrome-derived Manifest type, but config accepts untyped keys.
+    developer: { name: 'BeamApply', url: 'https://beamapply.com' },
     permissions: ['storage', 'unlimitedStorage'],
     browser_specific_settings: {
       gecko: {
