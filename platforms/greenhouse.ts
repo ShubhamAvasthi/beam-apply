@@ -6,34 +6,17 @@ import {
 import type { PlatformAdapter } from './types';
 
 /**
- * Fields we can fill on Greenhouse, keyed by profile field. Each entry
- * lists locators tried in order — first hit wins — with attribute
- * fallbacks in case the ids ever change.
+ * Fields we can fill on Greenhouse, keyed by profile field — one selector
+ * each.
  */
 const LOCATORS = {
-  firstName: ['#first_name', 'input[name="first_name"]'],
-  lastName: ['#last_name', 'input[name="last_name"]'],
-  email: ['#email', 'input[name="email"]'],
-  phone: ['#phone', 'input[name="phone"]', 'input[name*="phone"]'],
-  country: [
-    '#country',
-    'select[name="country"]',
-    'select[name*="country"]',
-    'select[aria-label*="Country"]',
-  ],
-  location: [
-    '#location',
-    'input[name="location"]',
-    'input[name="job_application[location]"]',
-    'input[name*="location"]',
-    'input[id*="location"]',
-  ],
-  resume: [
-    'input[type="file"][name*="resume" i]',
-    'input[type="file"][id*="resume" i]',
-    '#resume',
-    'input[name*="resume" i]',
-  ],
+  firstName: '#first_name',
+  lastName: '#last_name',
+  email: '#email',
+  phone: '#phone',
+  country: '#country',
+  location: '#candidate-location',
+  resume: '#resume',
 } as const;
 
 const LOG_PREFIX = '[BeamApply/greenhouse]';
@@ -66,15 +49,12 @@ function setFieldValue(
  * the applicant already typed are never overwritten.
  */
 function locateEmptyField(
-  selectors: readonly string[],
+  selector: string,
 ): HTMLInputElement | HTMLSelectElement | null {
-  for (const selector of selectors) {
-    const el = document.querySelector<HTMLInputElement | HTMLSelectElement>(
-      selector,
-    );
-    if (el && el.value.trim() === '') return el;
-  }
-  return null;
+  const el = document.querySelector<HTMLInputElement | HTMLSelectElement>(
+    selector,
+  );
+  return el && el.value.trim() === '' ? el : null;
 }
 
 function wait(ms: number): Promise<void> {
@@ -276,22 +256,22 @@ async function fillNow(
 ): Promise<Array<HTMLInputElement | HTMLSelectElement>> {
   const filled: Array<HTMLInputElement | HTMLSelectElement> = [];
 
-  const targets: Array<{ selectors: readonly string[]; value: string }> = [
-    { selectors: LOCATORS.firstName, value: profile.personalInfo.firstName },
-    { selectors: LOCATORS.lastName, value: profile.personalInfo.lastName },
-    { selectors: LOCATORS.email, value: profile.personalInfo.email },
-    { selectors: LOCATORS.phone, value: profile.personalInfo.phone },
-    { selectors: LOCATORS.country, value: profile.personalInfo.country },
-    { selectors: LOCATORS.location, value: profile.personalInfo.location },
+  const targets: Array<{ selector: string; value: string }> = [
+    { selector: LOCATORS.firstName, value: profile.personalInfo.firstName },
+    { selector: LOCATORS.lastName, value: profile.personalInfo.lastName },
+    { selector: LOCATORS.email, value: profile.personalInfo.email },
+    { selector: LOCATORS.phone, value: profile.personalInfo.phone },
+    { selector: LOCATORS.country, value: profile.personalInfo.country },
+    { selector: LOCATORS.location, value: profile.personalInfo.location },
   ];
 
-  for (const { selectors, value } of targets) {
+  for (const { selector, value } of targets) {
     if (value === '') continue; // nothing in the profile for this field
 
-    const el = locateEmptyField(selectors);
+    const el = locateEmptyField(selector);
     if (el) {
       if (
-        (selectors === LOCATORS.country || selectors === LOCATORS.location) &&
+        (selector === LOCATORS.country || selector === LOCATORS.location) &&
         el instanceof HTMLInputElement
       ) {
         // Await completion — focusing the next field would blur and close
@@ -307,11 +287,9 @@ async function fillNow(
   // Resume is a file, not a text value — attach it to the upload input.
   const resume = profile.personalInfo.resume;
   if (isResumeFile(resume)) {
-    for (const selector of LOCATORS.resume) {
-      const input = document.querySelector<HTMLInputElement>(selector);
-      if (!input || input.type !== 'file') continue;
+    const input = document.querySelector<HTMLInputElement>(LOCATORS.resume);
+    if (input?.type === 'file') {
       if (attachResume(input, resume)) filled.push(input);
-      break;
     }
   }
 
