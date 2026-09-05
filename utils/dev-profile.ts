@@ -23,5 +23,11 @@ export const DEV_TEST_PROFILE: JobApplicationProfile = {
       base64: 'cmVzdW1l', // "resume" — stand-in bytes, dev fixture only
     },
   },
+  customQuestions: [
+    {
+      question: 'immigration sponsorship',
+      answer: 'No',
+    },
+  ],
   updatedAt: null,
 };

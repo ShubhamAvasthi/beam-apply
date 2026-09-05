@@ -47,6 +47,28 @@ export interface ResumeFile {
   base64: string;
 }
 
+/**
+ * A stored answer for a requisition-specific (custom) application question,
+ * e.g. "immigration sponsorship" — "No".
+ *
+ * Matching is substring-based at fill time: the stored question only has to
+ * appear within the question text the form renders (label / aria-label), and
+ * the first rendered question containing it is filled — so one entry like
+ * "immigration sponsorship" covers every company's phrasing. Keep fragments
+ * distinctive: a short question can match an unrelated field. For dropdowns
+ * the answer must exactly match one of the rendered option labels — nothing
+ * is guessed. Radio and checkbox questions are never filled automatically.
+ */
+export interface CustomQuestion {
+  /**
+   * Distinctive fragment of the question text as it appears on the form;
+   * the first rendered question containing it is filled.
+   */
+  question: string;
+  /** Answer to fill — free text, or an option label for dropdowns. */
+  answer: string;
+}
+
 const EMPTY_PROFILE = {
   personalInfo: {
     firstName: '',
@@ -57,6 +79,11 @@ const EMPTY_PROFILE = {
     location: '',
     resume: null as ResumeFile | null,
   },
+  /**
+   * Answers for requisition-specific questions, matched exactly against the
+   * question text rendered on the form.
+   */
+  customQuestions: [] as CustomQuestion[],
   updatedAt: null as string | null,
 };
 

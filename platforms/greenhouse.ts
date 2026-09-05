@@ -1,4 +1,5 @@
 import {
+  type CustomQuestion,
   isResumeFile,
   type JobApplicationProfile,
   type ResumeFile,
@@ -28,16 +29,18 @@ const LOG_PREFIX = '[BeamApply/greenhouse]';
  * never reaches their state or is silently reverted on the next render
  * (which is exactly what we saw on Greenhouse). Setting via the
  * prototype descriptor plus bubbling `input`/`change` reads as a
- * genuine user edit. Supports both inputs and select dropdowns.
+ * genuine user edit. Supports inputs, textareas, and select dropdowns.
  */
 function setFieldValue(
-  element: HTMLInputElement | HTMLSelectElement,
+  element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
   value: string,
 ): void {
   const proto =
     element instanceof HTMLSelectElement
       ? HTMLSelectElement.prototype
-      : HTMLInputElement.prototype;
+      : element instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
   const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
   descriptor?.set?.call(element, value);
   element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -68,14 +71,20 @@ function wait(ms: number): Promise<void> {
  * which is then clicked. The prototype setter + a single `input` event is
  * enough to arm Greenhouse's typeahead.
  *
- * Resolves once the option is clicked (or retries are exhausted). Filling
- * autocomplete fields sequentially matters: each field's dropdown closes the
- * moment another input takes focus, so a later field must wait its turn.
+ * Resolves once the option is clicked (or retries are exhausted) and returns
+ * whether an option was actually clicked. With `exactOnly`, no prefix or
+ * fallback option is clicked — the typed text must match a rendered option
+ * exactly (custom-question answers must never guess an option).
+ *
+ * Filling autocomplete fields sequentially matters: each field's dropdown
+ * closes the moment another input takes focus, so a later field must wait
+ * its turn.
  */
 async function fillAutocomplete(
   input: HTMLInputElement,
   targetText: string,
-): Promise<void> {
+  exactOnly = false,
+): Promise<boolean> {
   input.focus();
 
   const proto = HTMLInputElement.prototype;
@@ -108,17 +117,21 @@ async function fillAutocomplete(
 
   // Let the typeahead debounce + API fetch render the suggestions.
   await wait(1000);
-  const clicked = await selectDropdownOption(targetText);
+  const clicked = await selectDropdownOption(targetText, exactOnly);
   if (!clicked) {
     console.warn(`${LOG_PREFIX} no dropdown option found for "${targetText}" after retries.`);
   }
+  return clicked;
 }
 
 /**
  * Scans for a visible dropdown option for the typed value, preferring an
  * exact text match, then a prefix match, then the first visible option.
  */
-function locateDropdownOption(targetText: string): HTMLElement | null {
+function locateDropdownOption(
+  targetText: string,
+  exactOnly = false,
+): HTMLElement | null {
   // `li.iti__country` is Greenhouse's intl-tel-input country picker (the
   // dropdown item is e.g. `<li class="iti__country" data-country-code="in">
   // <span class="iti__country-name">India</span> …
@@ -165,6 +178,8 @@ function locateDropdownOption(targetText: string): HTMLElement | null {
     }
   }
 
+  // Exact answers never fall back to prefix/first-visible options.
+  if (exactOnly) return exactOpt;
   return exactOpt ?? prefixOpt ?? fallbackOpt;
 }
 
@@ -204,9 +219,12 @@ function clickDropdownOption(option: HTMLElement): void {
 }
 
 /** Polls the dropdown for up to ~1.6s and clicks the matching option. */
-async function selectDropdownOption(targetText: string): Promise<boolean> {
+async function selectDropdownOption(
+  targetText: string,
+  exactOnly = false,
+): Promise<boolean> {
   for (let attempts = 0; attempts < 5; attempts += 1) {
-    const option = locateDropdownOption(targetText);
+    const option = locateDropdownOption(targetText, exactOnly);
     if (option) {
       clickDropdownOption(option);
       return true;
@@ -214,6 +232,144 @@ async function selectDropdownOption(targetText: string): Promise<boolean> {
     await wait(400);
   }
   return false;
+}
+
+/**
+ * Custom (requisition-specific) questions — "Do you now or will you in the
+ * future require immigration sponsorship…", "How did you hear about this
+ * job?" — can't be located by fixed ids: every requisition invents its own
+ * questions. Instead, the stored question only has to appear somewhere
+ * within the question text the form renders — one entry like
+ * "immigration sponsorship" then covers every company's phrasing — and the
+ * first rendered question containing it is filled, with the answer as free
+ * text or, for dropdown questions, by selecting the option whose label
+ * matches exactly.
+ */
+
+/**
+ * One custom question as rendered on the current form:
+ * - `text` — free-text input / textarea; the answer is filled verbatim.
+ * - `combobox` — react-select control (modern boards), driven like the
+ *   country/location typeaheads but restricted to exact option matches.
+ * - `select` — native dropdown (classic boards).
+ */
+type PageQuestion =
+  | { kind: 'text'; control: HTMLInputElement | HTMLTextAreaElement }
+  | { kind: 'combobox'; control: HTMLInputElement }
+  | { kind: 'select'; control: HTMLSelectElement };
+
+const TEXT_INPUT_TYPES = new Set(['text', 'email', 'tel', 'url', 'number']);
+
+/** A rendered page question paired with the raw text it was found by. */
+type IndexedQuestion = { text: string; question: PageQuestion };
+
+/**
+ * Indexes the page's custom questions together with the question text each
+ * was found by, via `label[for]` (falling back to the control's own
+ * `aria-label`, which carries the same question text on live forms). The
+ * text is kept exactly as rendered — matching is a plain substring test
+ * against it. Radio and checkbox questions are deliberately not indexed —
+ * see {@link PageQuestion}.
+ */
+function collectPageQuestions(): IndexedQuestion[] {
+  const questions: IndexedQuestion[] = [];
+
+  for (const label of document.querySelectorAll<HTMLLabelElement>('label[for]')) {
+    const control = document.getElementById(label.htmlFor);
+    if (!control) continue;
+
+    const text = label.textContent || control.getAttribute('aria-label') || '';
+
+    if (control instanceof HTMLInputElement) {
+      if (control.getAttribute('role') === 'combobox') {
+        questions.push({ text, question: { kind: 'combobox', control } });
+      } else if (TEXT_INPUT_TYPES.has(control.type)) {
+        questions.push({ text, question: { kind: 'text', control } });
+      }
+    } else if (control instanceof HTMLSelectElement) {
+      questions.push({ text, question: { kind: 'select', control } });
+    } else if (control instanceof HTMLTextAreaElement) {
+      questions.push({ text, question: { kind: 'text', control } });
+    }
+  }
+
+  return questions;
+}
+
+/**
+ * Fills every stored custom question whose text appears within a rendered
+ * question on the form (first match wins — keep stored questions
+ * distinctive). Never overwrites: answered questions and already-selected
+ * dropdowns are skipped, and a stored answer with no matching option is
+ * reported, not guessed.
+ */
+async function fillCustomQuestions(
+  entries: readonly CustomQuestion[],
+): Promise<number> {
+  if (entries.length === 0) return 0;
+
+  const pageQuestions = collectPageQuestions();
+  let filledCount = 0;
+
+  for (const entry of entries) {
+    const question = entry.question.trim();
+    const answer = entry.answer.trim();
+    if (question === '' || answer === '') continue;
+
+    const match = pageQuestions.find(({ text }) => text.includes(question));
+    if (!match) {
+      console.info(
+        `${LOG_PREFIX} no question on this form contains "${question}".`,
+      );
+      continue;
+    }
+    const pageQuestion = match.question;
+
+    switch (pageQuestion.kind) {
+      case 'text': {
+        if (pageQuestion.control.value.trim() !== '') break; // never overwrite
+        setFieldValue(pageQuestion.control, answer);
+        filledCount += 1;
+        break;
+      }
+
+      case 'select': {
+        if (pageQuestion.control.value !== '') break;
+        const option = [...pageQuestion.control.options].find(
+          (candidate) =>
+            candidate.value === answer ||
+            (candidate.textContent ?? '').trim() === answer,
+        );
+        if (option) {
+          setFieldValue(pageQuestion.control, option.value);
+          filledCount += 1;
+        } else {
+          console.warn(
+            `${LOG_PREFIX} question matched but no option "${answer}" exists.`,
+          );
+        }
+        break;
+      }
+
+      case 'combobox': {
+        const control = pageQuestion.control;
+        // react-select renders the chosen option inside the control shell —
+        // a present `.select__single-value` means this question is answered.
+        const shell = control.closest('.select__control');
+        if (
+          control.value.trim() !== '' ||
+          shell?.querySelector('.select__single-value')
+        ) {
+          break;
+        }
+        // Exact matches only — a partial answer must never pick an option.
+        if (await fillAutocomplete(control, answer, true)) filledCount += 1;
+        break;
+      }
+    }
+  }
+
+  return filledCount;
 }
 
 /**
@@ -302,11 +458,19 @@ export const greenhouseAdapter: PlatformAdapter = {
 
   /** Runs on button click — every init race on the page is over by then. */
   async autofill(profile) {
-    const filledCount = (await fillNow(profile)).length;
+    const filledElements = await fillNow(profile);
+    const customCount = await fillCustomQuestions(
+      profile.customQuestions ?? [], // profiles saved before custom questions
+    );
+    const filledCount = filledElements.length + customCount;
     if (filledCount === 0) {
       console.info(`${LOG_PREFIX} nothing to fill.`);
     } else {
-      console.info(`${LOG_PREFIX} filled ${filledCount} field(s).`);
+      console.info(
+        `${LOG_PREFIX} filled ${filledCount} field(s)` +
+          (customCount > 0 ? ` (including ${customCount} custom question(s))` : '') +
+          '.',
+      );
     }
     return filledCount;
   },

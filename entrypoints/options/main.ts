@@ -1,6 +1,7 @@
 import '@picocss/pico/css/pico.min.css';
 
 import {
+  type CustomQuestion,
   getMissingProfileFields,
   isResumeFile,
   type JobApplicationProfile,
@@ -21,6 +22,8 @@ const resumeName = document.querySelector<HTMLElement>('#resume-name')!;
 const resumeRemove = document.querySelector<HTMLButtonElement>('#resume-remove')!;
 const status = document.querySelector<HTMLSpanElement>('#status')!;
 const savedAt = document.querySelector<HTMLElement>('#saved-at')!;
+const customQuestions = document.querySelector<HTMLDivElement>('#custom-questions')!;
+const addQuestionButton = document.querySelector<HTMLButtonElement>('#add-question')!;
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
@@ -96,6 +99,74 @@ function flash(message: string, color?: string): void {
   }, 2600);
 }
 
+/**
+ * Custom requisition questions are plain Q/A rows staged in the DOM and
+ * collected at save time — the same pattern as the rest of the form.
+ */
+function addCustomQuestionRow(initial?: CustomQuestion): void {
+  const row = document.createElement('div');
+  row.className = 'custom-question-row';
+  row.setAttribute('data-custom-question', '');
+
+  const questionLabel = document.createElement('label');
+  questionLabel.append('Question');
+  const questionInput = document.createElement('input');
+  questionInput.type = 'text';
+  questionInput.className = 'custom-question-text';
+  questionInput.placeholder = 'Distinctive fragment of the question text';
+  if (initial) questionInput.value = initial.question;
+  questionLabel.append(questionInput);
+
+  const answerGrid = document.createElement('div');
+  answerGrid.className = 'grid';
+  const answerLabel = document.createElement('label');
+  answerLabel.append('Answer');
+  const answerInput = document.createElement('input');
+  answerInput.type = 'text';
+  answerInput.className = 'custom-question-answer';
+  answerInput.placeholder = 'Answer text or option label to fill';
+  if (initial) answerInput.value = initial.answer;
+  answerLabel.append(answerInput);
+  const removeButton = document.createElement('button');
+  removeButton.type = 'button';
+  removeButton.className = 'secondary outline';
+  removeButton.textContent = 'Remove';
+  removeButton.addEventListener('click', () => {
+    row.remove();
+  });
+  answerGrid.append(answerLabel, removeButton);
+
+  row.append(questionLabel, answerGrid);
+  customQuestions.append(row);
+}
+
+/** Collects the staged rows; a half-filled row (question OR answer) is an error. */
+function readCustomQuestions(): {
+  questions: CustomQuestion[];
+  error: string | null;
+} {
+  const questions: CustomQuestion[] = [];
+  for (const row of customQuestions.querySelectorAll('[data-custom-question]')) {
+    const question = row.querySelector<HTMLInputElement>(
+      '.custom-question-text',
+    )!.value.trim();
+    const answer = row.querySelector<HTMLInputElement>(
+      '.custom-question-answer',
+    )!.value.trim();
+    if (question === '' && answer === '') continue; // untouched row
+    if (question === '' || answer === '') {
+      return {
+        questions: [],
+        error: 'Each custom question needs both a question and an answer.',
+      };
+    }
+    questions.push({ question, answer });
+  }
+  return { questions, error: null };
+}
+
+addQuestionButton.addEventListener('click', () => addCustomQuestionRow());
+
 function updateSavedAt(profile: JobApplicationProfile): void {
   savedAt.textContent = profile.updatedAt
     ? `Last saved ${dateFormatter.format(new Date(profile.updatedAt))}`
@@ -135,6 +206,12 @@ form.addEventListener('submit', (event) => {
       return;
     }
 
+    const custom = readCustomQuestions();
+    if (custom.error) {
+      flash(custom.error, '#f87171');
+      return;
+    }
+
     const profile: JobApplicationProfile = {
       personalInfo: {
         firstName: firstName.value,
@@ -145,6 +222,7 @@ form.addEventListener('submit', (event) => {
         location: locationInput.value,
         resume: selectedResume,
       },
+      customQuestions: custom.questions,
       updatedAt: new Date().toISOString(),
     };
     try {
@@ -171,6 +249,8 @@ if (isResumeFile(stored.personalInfo.resume)) {
 }
 renderResume();
 updateSavedAt(stored);
+// Profiles saved before custom questions existed lack the field entirely.
+for (const entry of stored.customQuestions ?? []) addCustomQuestionRow(entry);
 
 // Field boundary is the single form; resume is guided inline instead (the
 // "No resume selected — a resume is required." text under the picker).

@@ -15,6 +15,13 @@
         --pico-primary-hover: #535bf2;
         --pico-primary-hover-background: #535bf2;
       }
+
+      /* Custom-question rows: visually separated Q/A pairs */
+      .custom-question-row {
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--pico-muted-border-color);
+      }
     </style>
   </head>
   <body>
@@ -83,6 +90,20 @@
               Remove resume
             </button>
           </p>
+
+          <h2>Custom questions</h2>
+          <p>
+            <small>
+              Requisition-specific questions (sponsorship, work authorization,
+              …). The stored question can be a distinctive fragment — the
+              first application question containing it is filled. For
+              dropdowns, the answer must be one of the options.
+            </small>
+          </p>
+          <div id="custom-questions"></div>
+          <button id="add-question" type="button" class="secondary outline">
+            Add question
+          </button>
 
           <p><span id="status" role="status"></span></p>
 
