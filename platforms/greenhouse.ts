@@ -373,6 +373,30 @@ async function fillCustomQuestions(
 }
 
 /**
+ * Fills a dedicated LinkedIn field. On Greenhouse this is a
+ * requisition-specific question (no fixed selector), so it's located by
+ * case-insensitive contains against the rendered question text — the same
+ * technique as custom questions, but surfaced as a first-class optional field
+ * because a LinkedIn URL appears on nearly every application. Never overwrites
+ * a value the applicant already typed.
+ */
+async function fillLinkedInField(profile: JobApplicationProfile): Promise<number> {
+  const linkedIn = (profile.personalInfo.linkedIn ?? '').trim();
+  if (!linkedIn) return 0;
+
+  const match = collectPageQuestions().find(({ text }) =>
+    text.toLowerCase().includes('linkedin profile'),
+  );
+  if (!match) return 0;
+
+  if (match.question.kind === 'text' && match.question.control.value.trim() === '') {
+    setFieldValue(match.question.control, linkedIn);
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Attaches the stored resume to a file input.
  *
  * Browsers block assigning a path to `input.value`, and `input.files` can
@@ -462,7 +486,8 @@ export const greenhouseAdapter: PlatformAdapter = {
     const customCount = await fillCustomQuestions(
       profile.customQuestions ?? [], // profiles saved before custom questions
     );
-    const filledCount = filledElements.length + customCount;
+    const linkedInCount = await fillLinkedInField(profile);
+    const filledCount = filledElements.length + customCount + linkedInCount;
     if (filledCount === 0) {
       console.info(`${LOG_PREFIX} nothing to fill.`);
     } else {

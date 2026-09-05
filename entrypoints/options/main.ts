@@ -17,6 +17,7 @@ const email = document.querySelector<HTMLInputElement>('#email')!;
 const phone = document.querySelector<HTMLInputElement>('#phone')!;
 const country = document.querySelector<HTMLSelectElement>('#country')!;
 const locationInput = document.querySelector<HTMLInputElement>('#location')!;
+const linkedinInput = document.querySelector<HTMLInputElement>('#linkedin')!;
 const resumeInput = document.querySelector<HTMLInputElement>('#resume')!;
 const resumeName = document.querySelector<HTMLElement>('#resume-name')!;
 const resumeRemove = document.querySelector<HTMLButtonElement>('#resume-remove')!;
@@ -220,6 +221,7 @@ form.addEventListener('submit', (event) => {
         phone: phone.value,
         country: country.value,
         location: locationInput.value,
+        linkedIn: linkedinInput.value,
         resume: selectedResume,
       },
       customQuestions: custom.questions,
@@ -251,6 +253,7 @@ renderResume();
 updateSavedAt(stored);
 // Profiles saved before custom questions existed lack the field entirely.
 for (const entry of stored.customQuestions ?? []) addCustomQuestionRow(entry);
+if (stored.personalInfo.linkedIn) linkedinInput.value = stored.personalInfo.linkedIn;
 
 // Field boundary is the single form; resume is guided inline instead (the
 // "No resume selected — a resume is required." text under the picker).
@@ -261,6 +264,7 @@ const fieldElements: Record<keyof PersonalInfo, HTMLElement | null> = {
   phone,
   country,
   location: locationInput,
+  linkedIn: linkedinInput,
   resume: null,
 };
 

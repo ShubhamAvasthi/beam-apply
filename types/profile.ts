@@ -77,6 +77,7 @@ const EMPTY_PROFILE = {
     phone: '',
     country: '',
     location: '',
+    linkedIn: '',
     resume: null as ResumeFile | null,
   },
   /**

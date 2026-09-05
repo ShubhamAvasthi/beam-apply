@@ -16,6 +16,7 @@ export const DEV_TEST_PROFILE: JobApplicationProfile = {
     phone: '+1 (555) 019-2834',
     country: 'United States',
     location: 'San Francisco, CA',
+    linkedIn: 'https://www.linkedin.com/in/johndoe',
     resume: {
       name: 'John_Doe_Resume.pdf',
       mimeType: 'application/pdf',
