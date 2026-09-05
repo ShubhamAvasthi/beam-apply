@@ -1,0 +1,79 @@
+# Automated store release. Cut a tag, get a store submission:
+#
+#   1. Bump "version" in package.json (single source of truth for the
+#      manifest version — AMO requires strictly increasing versions).
+#   2. git tag v1.0.1 && git push origin main v1.0.1
+#
+# The workflow verifies the tag matches the package version, runs the shared
+# build pipeline (typecheck, build, lint — identical to CI, see
+# .github/actions/build), zips (extension + sources), signs and uploads the
+# version to addons.mozilla.org, and attaches both zips to a GitHub Release
+# for provenance.
+#
+# The checks run inside the release run itself, strictly *before* anything is
+# published — a release can't ship code that doesn't typecheck, build, and
+# lint. (A tag push is a separate workflow run, so this workflow cannot
+# `needs:` the CI run that already passed for the same commit; re-running the
+# shared pipeline is the reliable equivalent and costs about a minute.)
+#
+# One-time setup — AMO API credentials (https://addons.mozilla.org/developers/
+# addon/api/key/): add repository secrets AMO_JWT_ISSUER and AMO_JWT_SECRET.
+# Without them the AMO step is skipped and only the GitHub Release is created.
+#
+# Note: `web-ext sign` refuses a version that already exists on AMO, so a
+# repeated tag can't double-submit; bump the version and re-tag instead.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release to AMO + GitHub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify tag matches package version
+        id: version
+        run: |
+          PKG_VERSION=$(jq -r '.version' package.json)
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION does not match package.json version $PKG_VERSION. Bump package.json and re-tag."
+            exit 1
+          fi
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing $PKG_VERSION"
+
+      - name: Install, typecheck, build, lint (shared with CI)
+        uses: ./.github/actions/build
+
+      - name: Package (extension + sources zips)
+        run: bun zip
+
+      - name: Sign and upload to AMO
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        if: env.AMO_JWT_ISSUER != '' && env.AMO_JWT_SECRET != ''
+        run: |
+          bunx web-ext sign \
+            --source-dir .output/firefox-mv3 \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET" \
+            --channel listed \
+            --upload-source-code ".output/beam-apply-${{ steps.version.outputs.version }}-sources.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            .output/beam-apply-*-firefox.zip
+            .output/beam-apply-*-sources.zip
+          generate_release_notes: true

@@ -1,0 +1,28 @@
+# Shared verification pipeline used by ci.yml and release.yml so both entry
+# points run byte-identical checks (the same ones AMO runs during review).
+# Assumes the repository is already checked out by the caller — keep cheap
+# fail-fast steps (like the tag/version check) before this action.
+# Changes to how BeamApply is verified go here and apply everywhere.
+name: 'Install, typecheck, build, lint'
+description: 'Install dependencies, typecheck, build Firefox MV3, and run web-ext lint.'
+runs:
+  using: composite
+  steps:
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+
+    - name: Install dependencies
+      run: bun install --frozen-lockfile
+      shell: bash
+
+    - name: Typecheck
+      run: bun compile
+      shell: bash
+
+    - name: Build
+      run: bun run build
+      shell: bash
+
+    - name: Lint (web-ext)
+      run: bunx web-ext lint --source-dir .output/firefox-mv3
+      shell: bash
