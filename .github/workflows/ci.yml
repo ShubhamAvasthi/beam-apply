@@ -1,0 +1,32 @@
+# Quality gate: every push to main and every PR must typecheck, build, and
+# pass web-ext lint (the same checks AMO runs during review). This keeps the
+# release workflow boring — by the time a tag is cut, the code is known-good.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Build & lint (Firefox MV3)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun compile
+
+      - name: Build
+        run: bun run build
+
+      - name: Lint (web-ext)
+        run: bunx web-ext lint --source-dir .output/firefox-mv3
