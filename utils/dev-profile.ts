@@ -17,7 +17,7 @@ export const DEV_TEST_PROFILE: JobApplicationProfile = {
     country: 'United States',
     location: 'San Francisco, CA',
     linkedIn: 'https://www.linkedin.com/in/johndoe',
-    willingToRelocate: "I am willing to relocate to this job's location.",
+    willingToRelocate: 'Yes',
     resume: {
       name: 'John_Doe_Resume.pdf',
       mimeType: 'application/pdf',

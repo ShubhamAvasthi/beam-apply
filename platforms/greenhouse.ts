@@ -407,25 +407,51 @@ async function fillWillingToRelocateField(
   profile: JobApplicationProfile,
 ): Promise<number> {
   const answer = (profile.personalInfo.willingToRelocate ?? '').trim();
-  if (!answer) return 0;
+  if (answer !== 'Yes' && answer !== 'No') return 0;
 
   const match = collectPageQuestions().find(({ text }) =>
     text.toLowerCase().includes('willing to relocate'),
   );
-  if (!match) return 0;
+  if (!match || match.question.kind !== 'combobox') return 0;
 
-  if (match.question.kind === 'combobox') {
-    const control = match.question.control;
-    const shell = control.closest('.select__control');
-    if (
-      control.value.trim() !== '' ||
-      shell?.querySelector('.select__single-value')
-    ) {
-      return 0;
-    }
-    return (await fillAutocomplete(control, answer, true)) ? 1 : 0;
+  const control = match.question.control;
+  const shell = control.closest('.select__control');
+  if (
+    control.value.trim() !== '' ||
+    shell?.querySelector('.select__single-value')
+  ) {
+    return 0;
   }
-  return 0;
+
+  // Open the dropdown and wait for options to render.
+  control.focus();
+  (shell as HTMLElement | null)?.click();
+  await wait(1000);
+
+  const option = locateRelocationOption(answer === 'Yes');
+  if (!option) return 0;
+
+  clickDropdownOption(option);
+  return 1;
+}
+
+/**
+ * Finds the relocation option matching a Yes/No answer: "Yes" matches the
+ * option that affirms willingness (contains "willing to relocate" but not
+ * "not willing"); "No" matches the option that denies it (contains "not
+ * willing"). Returns null if no matching option is visible.
+ */
+function locateRelocationOption(willing: boolean): HTMLElement | null {
+  const options = document.querySelectorAll<HTMLElement>('[role="option"]');
+  for (const opt of options) {
+    const text = (opt.textContent ?? '').trim().toLowerCase();
+    if (text === '') continue;
+    const hasWilling = text.includes('willing to relocate');
+    const hasNotWilling = text.includes('not willing');
+    if (willing && hasWilling && !hasNotWilling) return opt;
+    if (!willing && hasNotWilling) return opt;
+  }
+  return null;
 }
 
 /**
