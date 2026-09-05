@@ -4,6 +4,9 @@
 [![CodeQL](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/github-code-scanning/codeql)
 [![Dependabot Updates](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/dependabot/dependabot-updates)
 
+[![Firefox Add-on](https://img.shields.io/amo/v/beamapply?logo=firefoxbrowser)](https://addons.mozilla.org/firefox/addon/beamapply/)
+
+
 A fast, deterministic, privacy-first browser extension for autofilling job applications.
 
 ## Development & Commands
