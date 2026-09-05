@@ -78,6 +78,7 @@ const EMPTY_PROFILE = {
     country: '',
     location: '',
     linkedIn: '',
+    willingToRelocate: '',
     resume: null as ResumeFile | null,
   },
   /**

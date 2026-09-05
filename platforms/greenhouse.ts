@@ -397,6 +397,38 @@ async function fillLinkedInField(profile: JobApplicationProfile): Promise<number
 }
 
 /**
+ * Fills a dedicated "willing to relocate" field. On Greenhouse this is a
+ * react-select combobox (no fixed selector), located by case-insensitive
+ * contains against the rendered question text. The stored answer must be the
+ * exact option label the requisition renders (comboboxes only accept values
+ * from their dropdown). Never overwrites an already-selected value.
+ */
+async function fillWillingToRelocateField(
+  profile: JobApplicationProfile,
+): Promise<number> {
+  const answer = (profile.personalInfo.willingToRelocate ?? '').trim();
+  if (!answer) return 0;
+
+  const match = collectPageQuestions().find(({ text }) =>
+    text.toLowerCase().includes('willing to relocate'),
+  );
+  if (!match) return 0;
+
+  if (match.question.kind === 'combobox') {
+    const control = match.question.control;
+    const shell = control.closest('.select__control');
+    if (
+      control.value.trim() !== '' ||
+      shell?.querySelector('.select__single-value')
+    ) {
+      return 0;
+    }
+    return (await fillAutocomplete(control, answer, true)) ? 1 : 0;
+  }
+  return 0;
+}
+
+/**
  * Attaches the stored resume to a file input.
  *
  * Browsers block assigning a path to `input.value`, and `input.files` can
@@ -487,7 +519,9 @@ export const greenhouseAdapter: PlatformAdapter = {
       profile.customQuestions ?? [], // profiles saved before custom questions
     );
     const linkedInCount = await fillLinkedInField(profile);
-    const filledCount = filledElements.length + customCount + linkedInCount;
+    const willingToRelocateCount = await fillWillingToRelocateField(profile);
+    const filledCount =
+      filledElements.length + customCount + linkedInCount + willingToRelocateCount;
     if (filledCount === 0) {
       console.info(`${LOG_PREFIX} nothing to fill.`);
     } else {
