@@ -1,4 +1,9 @@
 # beam-apply
+
+[![CI](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/ci.yml/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/github-code-scanning/codeql)
+[![Dependabot Updates](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/dependabot/dependabot-updates)
+
 A fast, deterministic, privacy-first browser extension for autofilling job applications.
 
 ## Development & Commands
