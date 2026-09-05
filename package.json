@@ -2,7 +2,7 @@
   "name": "beam-apply",
   "description": "A fast, deterministic, privacy-first browser extension for autofilling job applications.",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",
