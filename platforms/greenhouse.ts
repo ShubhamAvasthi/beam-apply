@@ -429,6 +429,26 @@ async function fillWillingToRelocateField(
 }
 
 /**
+ * Fills a dedicated "How did you hear about this job?" field. On Greenhouse
+ * this is a requisition-specific text question (no fixed selector), located
+ * by case-insensitive contains against the rendered question text. The answer
+ * is filled verbatim. Never overwrites a value the applicant already typed.
+ */
+async function fillHowDidYouHearField(profile: JobApplicationProfile): Promise<number> {
+  const answer = (profile.personalInfo.howDidYouHear ?? '').trim();
+  if (!answer) return 0;
+
+  const match = collectPageQuestions().find(({ text }) =>
+    text.toLowerCase().includes('how did you hear'),
+  );
+  if (!match || match.question.kind !== 'text') return 0;
+
+  if (match.question.control.value.trim() !== '') return 0; // never overwrite
+  setFieldValue(match.question.control, answer);
+  return 1;
+}
+
+/**
  * Attaches the stored resume to a file input.
  *
  * Browsers block assigning a path to `input.value`, and `input.files` can
@@ -520,8 +540,13 @@ export const greenhouseAdapter: PlatformAdapter = {
     );
     const linkedInCount = await fillLinkedInField(profile);
     const willingToRelocateCount = await fillWillingToRelocateField(profile);
+    const howDidYouHearCount = await fillHowDidYouHearField(profile);
     const filledCount =
-      filledElements.length + customCount + linkedInCount + willingToRelocateCount;
+      filledElements.length +
+      customCount +
+      linkedInCount +
+      willingToRelocateCount +
+      howDidYouHearCount;
     if (filledCount === 0) {
       console.info(`${LOG_PREFIX} nothing to fill.`);
     } else {

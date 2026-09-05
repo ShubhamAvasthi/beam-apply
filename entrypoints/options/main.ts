@@ -19,6 +19,7 @@ const country = document.querySelector<HTMLSelectElement>('#country')!;
 const locationInput = document.querySelector<HTMLInputElement>('#location')!;
 const linkedinInput = document.querySelector<HTMLInputElement>('#linkedin')!;
 const willingToRelocateInput = document.querySelector<HTMLSelectElement>('#willing-to-relocate')!;
+const howDidYouHearInput = document.querySelector<HTMLInputElement>('#how-did-you-hear')!;
 const resumeInput = document.querySelector<HTMLInputElement>('#resume')!;
 const resumeName = document.querySelector<HTMLElement>('#resume-name')!;
 const resumeRemove = document.querySelector<HTMLButtonElement>('#resume-remove')!;
@@ -224,6 +225,7 @@ form.addEventListener('submit', (event) => {
         location: locationInput.value,
         linkedIn: linkedinInput.value,
         willingToRelocate: willingToRelocateInput.value,
+        howDidYouHear: howDidYouHearInput.value,
         resume: selectedResume,
       },
       customQuestions: custom.questions,
@@ -257,6 +259,7 @@ updateSavedAt(stored);
 for (const entry of stored.customQuestions ?? []) addCustomQuestionRow(entry);
 if (stored.personalInfo.linkedIn) linkedinInput.value = stored.personalInfo.linkedIn;
 if (stored.personalInfo.willingToRelocate) willingToRelocateInput.value = stored.personalInfo.willingToRelocate;
+if (stored.personalInfo.howDidYouHear) howDidYouHearInput.value = stored.personalInfo.howDidYouHear;
 
 // Field boundary is the single form; resume is guided inline instead (the
 // "No resume selected — a resume is required." text under the picker).
@@ -269,6 +272,7 @@ const fieldElements: Record<keyof PersonalInfo, HTMLElement | null> = {
   location: locationInput,
   linkedIn: linkedinInput,
   willingToRelocate: willingToRelocateInput,
+  howDidYouHear: howDidYouHearInput,
   resume: null,
 };
 

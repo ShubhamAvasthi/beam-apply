@@ -79,6 +79,7 @@ const EMPTY_PROFILE = {
     location: '',
     linkedIn: '',
     willingToRelocate: '',
+    howDidYouHear: '',
     resume: null as ResumeFile | null,
   },
   /**
@@ -140,6 +141,7 @@ export function isResumeFile(value: unknown): value is ResumeFile {
 const OPTIONAL_PERSONAL_INFO_FIELDS = new Set<keyof PersonalInfo>([
   'linkedIn',
   'willingToRelocate',
+  'howDidYouHear',
 ]);
 
 /**
