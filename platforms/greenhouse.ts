@@ -423,31 +423,9 @@ async function fillWillingToRelocateField(
     return 0;
   }
 
-  // Open the dropdown and wait for options to render.
-  control.focus();
-  (shell as HTMLElement | null)?.click();
-  await wait(1000);
-
-  const option = locateRelocationOption(answer);
-  if (!option) return 0;
-
-  clickDropdownOption(option);
-  return 1;
-}
-
-/**
- * Finds the relocation option whose label matches the stored answer exactly
- * (case/whitespace-insensitive). Returns null if no matching option is
- * visible.
- */
-function locateRelocationOption(answer: string): HTMLElement | null {
-  const options = document.querySelectorAll<HTMLElement>('[role="option"]');
-  const needle = answer.trim().toLowerCase();
-  for (const opt of options) {
-    const text = (opt.textContent ?? '').trim().toLowerCase();
-    if (text === needle) return opt;
-  }
-  return null;
+  // Reuse the proven combobox path: type the answer, react-select filters to
+  // the matching option, and the exact-only matcher clicks it.
+  return (await fillAutocomplete(control, answer, true)) ? 1 : 0;
 }
 
 /**
