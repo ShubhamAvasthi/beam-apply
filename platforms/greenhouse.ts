@@ -83,10 +83,10 @@ function wait(ms: number): Promise<void> {
 
 /**
  * For autocomplete typeahead fields (Greenhouse's location AND country),
- * typing the value opens a dropdown of suggestions (e.g. "Bengaluru,
- * Karnataka, India" or "United States"). This simulates real human typing
- * character-by-character so typeahead debouncers and API fetch listeners
- * trigger correctly, then clicks the resulting visible dropdown option.
+ * writing the value in a single shot (paste-style) opens the dropdown of
+ * suggestions (e.g. "Bengaluru, Karnataka, India" or "United States"),
+ * which is then clicked. The prototype setter + a single `input` event is
+ * enough to arm Greenhouse's typeahead.
  *
  * Resolves once the option is clicked (or retries are exhausted). Filling
  * autocomplete fields sequentially matters: each field's dropdown closes the
@@ -100,37 +100,31 @@ async function fillAutocomplete(
 
   const proto = HTMLInputElement.prototype;
   const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
-  descriptor?.set?.call(input, '');
-  input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
 
-  // Track what we intend to type ourselves. Comboboxes like Greenhouse's
-  // country field may clear the input when the first keystroke opens the
-  // dropdown, so reading `input.value` back to append the next char would
-  // silently drop characters (a failed "India" → "ndia"). Re-asserting the
-  // full typed prefix on every tick keeps the field in sync regardless of
-  // transient widget resets.
-  let typed = '';
-  for (let charIndex = 0; charIndex < targetText.length; charIndex += 1) {
-    const char = targetText[charIndex];
-    typed += char;
-    descriptor?.set?.call(input, typed);
-
-    const inputEvent = new InputEvent('input', {
+  // Single-shot write of the full value, paste-style. The prototype setter
+  // is used so framework value-trackers treat it as a genuine user edit.
+  descriptor?.set?.call(input, targetText);
+  input.dispatchEvent(
+    new InputEvent('input', {
       bubbles: true,
       cancelable: true,
-      inputType: 'insertText',
-      data: char,
-    });
-    input.dispatchEvent(inputEvent);
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: char, bubbles: true }));
-    input.dispatchEvent(new KeyboardEvent('keyup', { key: char, bubbles: true }));
-    // No artificial delay between characters: these are scripted events fired
-    // synchronously in a single task, so pacing them would only stagger the
-    // keystrokes without giving the browser time to render in between. The
-    // typeahead's debounce coalesces the burst into one lookup with the full
-    // value; the wait below lets that lookup complete before scanning options.
-  }
+      inputType: 'insertFromPaste',
+      data: targetText,
+    }),
+  );
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  input.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: targetText[targetText.length - 1] ?? '',
+      bubbles: true,
+    }),
+  );
+  input.dispatchEvent(
+    new KeyboardEvent('keyup', {
+      key: targetText[targetText.length - 1] ?? '',
+      bubbles: true,
+    }),
+  );
 
   // Let the typeahead debounce + API fetch render the suggestions.
   await wait(1000);
