@@ -3,6 +3,7 @@
 [![CI](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/ci.yml/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/github-code-scanning/codeql)
 [![Dependabot Updates](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/dependabot/dependabot-updates)
+[![Release](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/release.yml/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/release.yml)
 
 [![Firefox Add-on](https://img.shields.io/amo/v/beamapply?logo=firefoxbrowser)](https://addons.mozilla.org/firefox/addon/beamapply/)
 
