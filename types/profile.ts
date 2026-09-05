@@ -137,7 +137,10 @@ export function isResumeFile(value: unknown): value is ResumeFile {
  * formal versioning yet. Only add a field here when we intentionally allow
  * it to stay blank.
  */
-const OPTIONAL_PERSONAL_INFO_FIELDS = new Set<keyof PersonalInfo>([]);
+const OPTIONAL_PERSONAL_INFO_FIELDS = new Set<keyof PersonalInfo>([
+  'linkedIn',
+  'willingToRelocate',
+]);
 
 /**
  * The `personalInfo` fields missing from the given profile, in declaration
