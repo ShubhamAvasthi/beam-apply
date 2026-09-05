@@ -125,8 +125,11 @@ async function fillAutocomplete(
     input.dispatchEvent(new Event('change', { bubbles: true }));
     input.dispatchEvent(new KeyboardEvent('keydown', { key: char, bubbles: true }));
     input.dispatchEvent(new KeyboardEvent('keyup', { key: char, bubbles: true }));
-
-    await wait(60); // 60ms between characters
+    // No artificial delay between characters: these are scripted events fired
+    // synchronously in a single task, so pacing them would only stagger the
+    // keystrokes without giving the browser time to render in between. The
+    // typeahead's debounce coalesces the burst into one lookup with the full
+    // value; the wait below lets that lookup complete before scanning options.
   }
 
   // Let the typeahead debounce + API fetch render the suggestions.
