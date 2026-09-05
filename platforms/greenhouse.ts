@@ -407,7 +407,7 @@ async function fillWillingToRelocateField(
   profile: JobApplicationProfile,
 ): Promise<number> {
   const answer = (profile.personalInfo.willingToRelocate ?? '').trim();
-  if (answer !== 'Yes' && answer !== 'No') return 0;
+  if (!answer) return 0;
 
   const match = collectPageQuestions().find(({ text }) =>
     text.toLowerCase().includes('willing to relocate'),
@@ -428,7 +428,7 @@ async function fillWillingToRelocateField(
   (shell as HTMLElement | null)?.click();
   await wait(1000);
 
-  const option = locateRelocationOption(answer === 'Yes');
+  const option = locateRelocationOption(answer);
   if (!option) return 0;
 
   clickDropdownOption(option);
@@ -436,20 +436,16 @@ async function fillWillingToRelocateField(
 }
 
 /**
- * Finds the relocation option matching a Yes/No answer: "Yes" matches the
- * option that affirms willingness (contains "willing to relocate" but not
- * "not willing"); "No" matches the option that denies it (contains "not
- * willing"). Returns null if no matching option is visible.
+ * Finds the relocation option whose label matches the stored answer exactly
+ * (case/whitespace-insensitive). Returns null if no matching option is
+ * visible.
  */
-function locateRelocationOption(willing: boolean): HTMLElement | null {
+function locateRelocationOption(answer: string): HTMLElement | null {
   const options = document.querySelectorAll<HTMLElement>('[role="option"]');
+  const needle = answer.trim().toLowerCase();
   for (const opt of options) {
     const text = (opt.textContent ?? '').trim().toLowerCase();
-    if (text === '') continue;
-    const hasWilling = text.includes('willing to relocate');
-    const hasNotWilling = text.includes('not willing');
-    if (willing && hasWilling && !hasNotWilling) return opt;
-    if (!willing && hasNotWilling) return opt;
+    if (text === needle) return opt;
   }
   return null;
 }
