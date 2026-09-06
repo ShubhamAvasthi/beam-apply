@@ -5,7 +5,7 @@ export default defineConfig({
   browser: 'firefox',
   // AMO requires MV3 for new submissions; override Firefox's MV2 default.
   manifestVersion: 3,
-  manifest: {
+  manifest: (env) => ({
     name: 'BeamApply',
     description: 'A fast, deterministic, privacy-first browser extension for autofilling job applications.',
     // Firefox's recommended way to identify the developer (MDN: name/url
@@ -36,12 +36,23 @@ export default defineConfig({
         strict_min_version: '142.0',
       },
     },
-    icons: {
-      16: '/icon/logo-only.svg',
-      32: '/icon/logo-only.svg',
-      48: '/icon/logo-only.svg',
-      96: '/icon/logo-full.svg',
-      128: '/icon/logo-full.svg',
-    },
-  },
+    icons:
+      // Chrome's manifest parser does not support SVG icons — its build
+      // references PNGs rasterized by scripts/generate-icons.ts. Firefox
+      // supports SVG natively, so its build keeps the vector sources.
+      env.browser === 'chrome'
+        ? {
+            16: '/icon/icon-16.png',
+            32: '/icon/icon-32.png',
+            48: '/icon/icon-48.png',
+            128: '/icon/icon-128.png',
+          }
+        : {
+            16: '/icon/logo-only.svg',
+            32: '/icon/logo-only.svg',
+            48: '/icon/logo-only.svg',
+            96: '/icon/logo-full.svg',
+            128: '/icon/logo-full.svg',
+          },
+  }),
 });
