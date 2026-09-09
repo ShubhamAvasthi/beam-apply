@@ -43,6 +43,30 @@ Make sure you have [Bun](https://bun.sh) installed.
   bun format
   ```
 
+### Editor Setup
+
+Install the ESLint and Prettier extensions for your editor so it flags the same issues CI does:
+
+- **ESLint extension** — integrates `eslint.config.js`, highlighting lint and deprecation errors inline
+- **Prettier extension** — integrates the Prettier config; set it as the default formatter and enable **Format On Save** so files are always CI-clean
+
+For example, in VS Code (`dbaeumer.vscode-eslint`, `esbenp.prettier-vscode`):
+
+```bash
+code --install-extension dbaeumer.vscode-eslint --install-extension esbenp.prettier-vscode
+```
+
+and in workspace settings (`.vscode/settings.json`), so formatting on save uses Prettier:
+
+```json
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true
+}
+```
+
+Every editor with an ESLint/Prettier integration (VS Code, WebStorm, Neovim, …) works the same way — point it at this repo's config and enable format-on-save.
+
 ### Production & Distribution
 
 - **Build extension (Firefox):**
