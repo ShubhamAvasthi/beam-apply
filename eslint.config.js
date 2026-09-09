@@ -19,5 +19,17 @@ export default defineConfig(
   ]),
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: { allowDefaultProject: ['eslint.config.js'] },
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-deprecated': 'error',
+    },
+  },
 );
+
+
 
