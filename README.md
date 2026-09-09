@@ -29,6 +29,10 @@ Make sure you have [Bun](https://bun.sh) installed.
   ```bash
   bun compile
   ```
+- **Lint (ESLint):**
+  ```bash
+  bun lint
+  ```
 
 ### Production & Distribution
 - **Build extension (Firefox):**
