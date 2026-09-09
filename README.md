@@ -34,6 +34,14 @@ Make sure you have [Bun](https://bun.sh) installed.
   ```bash
   bun lint
   ```
+- **Format check (Prettier):**
+  ```bash
+  bun format:check
+  ```
+- **Format (Prettier):**
+  ```bash
+  bun format
+  ```
 
 ### Production & Distribution
 
