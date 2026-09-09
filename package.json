@@ -15,8 +15,6 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
