@@ -1,4 +1,4 @@
-import type { JobApplicationProfile } from '~/types/profile';
+import type { JobApplicationProfile } from "~/types/profile";
 
 /**
  * One integration per ATS / job-board platform.

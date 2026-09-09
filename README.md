@@ -7,7 +7,6 @@
 
 [![Firefox Add-on](https://img.shields.io/amo/v/beamapply?logo=firefoxbrowser)](https://addons.mozilla.org/firefox/addon/beamapply/)
 
-
 A fast, deterministic, privacy-first browser extension for autofilling job applications.
 
 ## Development & Commands
@@ -15,6 +14,7 @@ A fast, deterministic, privacy-first browser extension for autofilling job appli
 Make sure you have [Bun](https://bun.sh) installed.
 
 ### Development
+
 - **Start dev server (Firefox):**
   ```bash
   bun dev
@@ -25,6 +25,7 @@ Make sure you have [Bun](https://bun.sh) installed.
   ```
 
 ### Quality & Type Checking
+
 - **Type check (TypeScript):**
   ```bash
   bun compile
@@ -35,6 +36,7 @@ Make sure you have [Bun](https://bun.sh) installed.
   ```
 
 ### Production & Distribution
+
 - **Build extension (Firefox):**
   ```bash
   bun run build
@@ -50,7 +52,7 @@ Make sure you have [Bun](https://bun.sh) installed.
 
 ## Contributors
 
-BeamApply cannot be successful without the support of our contributors. Thank you to everyone who has helped shape this project! 
+BeamApply cannot be successful without the support of our contributors. Thank you to everyone who has helped shape this project!
 
 We are always looking for passionate developers to help improve BeamApply. Contributions of all kinds are warmly welcome. Feel free to report any issues or submit a pull request.
 

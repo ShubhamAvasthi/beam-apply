@@ -1,0 +1,6 @@
+# Prettier defaults are used as-is (double quotes, semicolons, LF, final
+# newline) — they already match the codebase style, so no config file.
+
+.output/
+.wxt/
+bun.lock

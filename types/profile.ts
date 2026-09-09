@@ -71,15 +71,15 @@ export interface CustomQuestion {
 
 const EMPTY_PROFILE = {
   personalInfo: {
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    country: '',
-    location: '',
-    linkedIn: '',
-    willingToRelocate: '',
-    howDidYouHear: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    country: "",
+    location: "",
+    linkedIn: "",
+    willingToRelocate: "",
+    howDidYouHear: "",
     resume: null as ResumeFile | null,
   },
   /**
@@ -91,7 +91,7 @@ const EMPTY_PROFILE = {
 };
 
 /** The user’s core identity details used for form filling. */
-export type PersonalInfo = typeof EMPTY_PROFILE['personalInfo'];
+export type PersonalInfo = (typeof EMPTY_PROFILE)["personalInfo"];
 
 /**
  * The complete job application profile persisted under `local:profile`.
@@ -118,13 +118,13 @@ export function createEmptyProfile(): JobApplicationProfile {
  * new object shape before touching it.
  */
 export function isResumeFile(value: unknown): value is ResumeFile {
-  if (typeof value !== 'object' || value === null) return false;
+  if (typeof value !== "object" || value === null) return false;
   const candidate = value as ResumeFile;
   return (
-    typeof candidate.name === 'string' &&
-    typeof candidate.mimeType === 'string' &&
-    typeof candidate.size === 'number' &&
-    typeof candidate.base64 === 'string'
+    typeof candidate.name === "string" &&
+    typeof candidate.mimeType === "string" &&
+    typeof candidate.size === "number" &&
+    typeof candidate.base64 === "string"
   );
 }
 
@@ -139,9 +139,9 @@ export function isResumeFile(value: unknown): value is ResumeFile {
  * it to stay blank.
  */
 const OPTIONAL_PERSONAL_INFO_FIELDS = new Set<keyof PersonalInfo>([
-  'linkedIn',
-  'willingToRelocate',
-  'howDidYouHear',
+  "linkedIn",
+  "willingToRelocate",
+  "howDidYouHear",
 ]);
 
 /**
@@ -155,21 +155,22 @@ export function getMissingProfileFields(
   profile: JobApplicationProfile,
 ): Array<keyof PersonalInfo> {
   const missing: Array<keyof PersonalInfo> = [];
-  const personalInfo = profile.personalInfo as Partial<PersonalInfo> | undefined;
+  const personalInfo = profile.personalInfo as
+    Partial<PersonalInfo> | undefined;
 
-  for (const field of Object.keys(
-    EMPTY_PROFILE.personalInfo,
-  ) as Array<keyof PersonalInfo>) {
+  for (const field of Object.keys(EMPTY_PROFILE.personalInfo) as Array<
+    keyof PersonalInfo
+  >) {
     if (OPTIONAL_PERSONAL_INFO_FIELDS.has(field)) continue;
 
     const value = personalInfo?.[field];
     const isEmpty =
-      value === '' ||
+      value === "" ||
       value === null ||
       value === undefined ||
       (Array.isArray(value) && value.length === 0);
     const isInvalidResume =
-      field === 'resume' &&
+      field === "resume" &&
       value !== null &&
       value !== undefined &&
       !isResumeFile(value);

@@ -1,5 +1,5 @@
-import { greenhouseAdapter } from './greenhouse';
-import type { PlatformAdapter } from './types';
+import { greenhouseAdapter } from "./greenhouse";
+import type { PlatformAdapter } from "./types";
 
 /** Every supported platform. Register new adapters here. */
 const ADAPTERS: readonly PlatformAdapter[] = [greenhouseAdapter];

@@ -1,15 +1,15 @@
-import buttonStyle from './autofill-button.css?raw';
+import buttonStyle from "./autofill-button.css?raw";
 
-import { browser } from 'wxt/browser';
+import { browser } from "wxt/browser";
 
-import { findAdapter } from '@/platforms';
-import { getMissingProfileFields } from '@/types/profile';
-import { profileStorage } from '@/utils/storage';
+import { findAdapter } from "@/platforms";
+import { getMissingProfileFields } from "@/types/profile";
+import { profileStorage } from "@/utils/storage";
 
-const HOST_ID = 'beamapply-autofill-host';
-const BUTTON_LABEL = '⚡ Autofill';
-const FILLED_LABEL = '✓ Filled';
-const INCOMPLETE_LABEL = '⚠ Complete profile';
+const HOST_ID = "beamapply-autofill-host";
+const BUTTON_LABEL = "⚡ Autofill";
+const FILLED_LABEL = "✓ Filled";
+const INCOMPLETE_LABEL = "⚠ Complete profile";
 
 /**
  * Fully isolated inside a shadow root so neither the host page’s CSS nor
@@ -33,16 +33,16 @@ export function mountAutofillButton(): void {
 
   const mountTarget = document.body ?? document.documentElement;
 
-  const host = document.createElement('div');
+  const host = document.createElement("div");
   host.id = HOST_ID;
-  const shadowRoot = host.attachShadow({ mode: 'open' });
+  const shadowRoot = host.attachShadow({ mode: "open" });
 
-  const style = document.createElement('style');
+  const style = document.createElement("style");
   style.textContent = buttonStyle;
-  const button = document.createElement('button');
-  button.type = 'button';
+  const button = document.createElement("button");
+  button.type = "button";
   button.textContent = BUTTON_LABEL;
-  button.addEventListener('click', () => {
+  button.addEventListener("click", () => {
     void fillFromProfile(button);
   });
 
@@ -59,12 +59,12 @@ export function mountAutofillButton(): void {
  */
 function openOptionsPage(): void {
   const opener = browser.runtime.openOptionsPage;
-  if (typeof opener === 'function') {
+  if (typeof opener === "function") {
     Promise.resolve(opener()).catch(() => {
-      window.open(browser.runtime.getURL('/options.html'), '_blank');
+      window.open(browser.runtime.getURL("/options.html"), "_blank");
     });
   } else {
-    window.open(browser.runtime.getURL('/options.html'), '_blank');
+    window.open(browser.runtime.getURL("/options.html"), "_blank");
   }
 }
 
@@ -82,7 +82,7 @@ async function fillFromProfile(button: HTMLButtonElement): Promise<void> {
   const missing = getMissingProfileFields(profile);
   if (missing.length > 0) {
     console.warn(
-      `[BeamApply] profile is incomplete; missing required field${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}. Open the profile editor to fix it.`,
+      `[BeamApply] profile is incomplete; missing required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Open the profile editor to fix it.`,
     );
     button.textContent = INCOMPLETE_LABEL;
     openOptionsPage();

@@ -5,20 +5,20 @@
  *
  * Usage: bun scripts/generate-icons.ts
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import sharp from 'sharp';
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 
 /** Mirrors the Firefox icon mapping in wxt.config.ts. */
-const SIZES: Array<{ size: number; source: 'logo-only' | 'logo-full' }> = [
-  { size: 16, source: 'logo-only' },
-  { size: 32, source: 'logo-only' },
-  { size: 48, source: 'logo-only' },
-  { size: 128, source: 'logo-full' },
+const SIZES: Array<{ size: number; source: "logo-only" | "logo-full" }> = [
+  { size: 16, source: "logo-only" },
+  { size: 32, source: "logo-only" },
+  { size: 48, source: "logo-only" },
+  { size: 128, source: "logo-full" },
 ];
 
-const iconDir = fileURLToPath(new URL('../public/icon', import.meta.url));
+const iconDir = fileURLToPath(new URL("../public/icon", import.meta.url));
 await mkdir(iconDir, { recursive: true });
 
 for (const { size, source } of SIZES) {

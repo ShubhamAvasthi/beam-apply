@@ -3,24 +3,24 @@ import {
   isResumeFile,
   type JobApplicationProfile,
   type ResumeFile,
-} from '~/types/profile';
-import type { PlatformAdapter } from './types';
+} from "~/types/profile";
+import type { PlatformAdapter } from "./types";
 
 /**
  * Fields we can fill on Greenhouse, keyed by profile field — one selector
  * each.
  */
 const LOCATORS = {
-  firstName: '#first_name',
-  lastName: '#last_name',
-  email: '#email',
-  phone: '#phone',
-  country: '#country',
-  location: '#candidate-location',
-  resume: '#resume',
+  firstName: "#first_name",
+  lastName: "#last_name",
+  email: "#email",
+  phone: "#phone",
+  country: "#country",
+  location: "#candidate-location",
+  resume: "#resume",
 } as const;
 
-const LOG_PREFIX = '[BeamApply/greenhouse]';
+const LOG_PREFIX = "[BeamApply/greenhouse]";
 
 /**
  * Writes through the prototype's own `value` setter rather than the
@@ -41,10 +41,10 @@ function setFieldValue(
       : element instanceof HTMLTextAreaElement
         ? HTMLTextAreaElement.prototype
         : HTMLInputElement.prototype;
-  const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+  const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
   descriptor?.set?.call(element, value);
-  element.dispatchEvent(new Event('input', { bubbles: true }));
-  element.dispatchEvent(new Event('change', { bubbles: true }));
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+  element.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 /**
@@ -57,7 +57,7 @@ function locateEmptyField(
   const el = document.querySelector<HTMLInputElement | HTMLSelectElement>(
     selector,
   );
-  return el && el.value.trim() === '' ? el : null;
+  return el && el.value.trim() === "" ? el : null;
 }
 
 function wait(ms: number): Promise<void> {
@@ -88,29 +88,29 @@ async function fillAutocomplete(
   input.focus();
 
   const proto = HTMLInputElement.prototype;
-  const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+  const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
 
   // Single-shot write of the full value, paste-style. The prototype setter
   // is used so framework value-trackers treat it as a genuine user edit.
   descriptor?.set?.call(input, targetText);
   input.dispatchEvent(
-    new InputEvent('input', {
+    new InputEvent("input", {
       bubbles: true,
       cancelable: true,
-      inputType: 'insertFromPaste',
+      inputType: "insertFromPaste",
       data: targetText,
     }),
   );
-  input.dispatchEvent(new Event('change', { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
   input.dispatchEvent(
-    new KeyboardEvent('keydown', {
-      key: targetText[targetText.length - 1] ?? '',
+    new KeyboardEvent("keydown", {
+      key: targetText[targetText.length - 1] ?? "",
       bubbles: true,
     }),
   );
   input.dispatchEvent(
-    new KeyboardEvent('keyup', {
-      key: targetText[targetText.length - 1] ?? '',
+    new KeyboardEvent("keyup", {
+      key: targetText[targetText.length - 1] ?? "",
       bubbles: true,
     }),
   );
@@ -119,7 +119,9 @@ async function fillAutocomplete(
   await wait(1000);
   const clicked = await selectDropdownOption(targetText, exactOnly);
   if (!clicked) {
-    console.warn(`${LOG_PREFIX} no dropdown option found for "${targetText}" after retries.`);
+    console.warn(
+      `${LOG_PREFIX} no dropdown option found for "${targetText}" after retries.`,
+    );
   }
   return clicked;
 }
@@ -150,9 +152,9 @@ function locateDropdownOption(
     const computed = window.getComputedStyle(opt);
     const rect = opt.getBoundingClientRect();
     const isVisible =
-      computed.display !== 'none' &&
-      computed.visibility !== 'hidden' &&
-      computed.opacity !== '0' &&
+      computed.display !== "none" &&
+      computed.visibility !== "hidden" &&
+      computed.opacity !== "0" &&
       rect.width > 0 &&
       rect.height > 0;
 
@@ -164,10 +166,12 @@ function locateDropdownOption(
     // intl-tel-input items contain the country name AND the dial code
     // ("India+91"). Match against the visible country-name span so "india"
     // is an exact match instead of being polluted by "+91".
-    const nameEl = opt.classList.contains('iti__country')
-      ? opt.querySelector<HTMLElement>('.iti__country-name')
+    const nameEl = opt.classList.contains("iti__country")
+      ? opt.querySelector<HTMLElement>(".iti__country-name")
       : null;
-    const text = (nameEl?.textContent ?? opt.textContent ?? '').trim().toLowerCase();
+    const text = (nameEl?.textContent ?? opt.textContent ?? "")
+      .trim()
+      .toLowerCase();
 
     // Prefer the option that exactly matches what we typed, then one that
     // starts with it, before the first visible suggestion.
@@ -205,16 +209,16 @@ function clickDropdownOption(option: HTMLElement): void {
   // blur beats the click), so dispatch the full gesture at the item's
   // real coordinates.
   const topmostEl = document.elementFromPoint(x, y) || option;
-  fireMouse(topmostEl, 'mousedown');
-  fireMouse(topmostEl, 'mouseup');
-  fireMouse(topmostEl, 'click');
+  fireMouse(topmostEl, "mousedown");
+  fireMouse(topmostEl, "mouseup");
+  fireMouse(topmostEl, "click");
 
   // intl-tel-input binds selection on the <li>, so when the topmost element
   // is a child (flag/name span) that swallowed the gesture, also click the
   // <li> directly. Plain autocompletes select via the bubbling gesture
   // alone — keep this safety net iti-only.
-  if (topmostEl !== option && option.classList.contains('iti__country')) {
-    fireMouse(option, 'click');
+  if (topmostEl !== option && option.classList.contains("iti__country")) {
+    fireMouse(option, "click");
   }
 }
 
@@ -254,11 +258,11 @@ async function selectDropdownOption(
  * - `select` — native dropdown (classic boards).
  */
 type PageQuestion =
-  | { kind: 'text'; control: HTMLInputElement | HTMLTextAreaElement }
-  | { kind: 'combobox'; control: HTMLInputElement }
-  | { kind: 'select'; control: HTMLSelectElement };
+  | { kind: "text"; control: HTMLInputElement | HTMLTextAreaElement }
+  | { kind: "combobox"; control: HTMLInputElement }
+  | { kind: "select"; control: HTMLSelectElement };
 
-const TEXT_INPUT_TYPES = new Set(['text', 'email', 'tel', 'url', 'number']);
+const TEXT_INPUT_TYPES = new Set(["text", "email", "tel", "url", "number"]);
 
 /** A rendered page question paired with the raw text it was found by. */
 type IndexedQuestion = { text: string; question: PageQuestion };
@@ -274,22 +278,24 @@ type IndexedQuestion = { text: string; question: PageQuestion };
 function collectPageQuestions(): IndexedQuestion[] {
   const questions: IndexedQuestion[] = [];
 
-  for (const label of document.querySelectorAll<HTMLLabelElement>('label[for]')) {
+  for (const label of document.querySelectorAll<HTMLLabelElement>(
+    "label[for]",
+  )) {
     const control = document.getElementById(label.htmlFor);
     if (!control) continue;
 
-    const text = label.textContent || control.getAttribute('aria-label') || '';
+    const text = label.textContent || control.getAttribute("aria-label") || "";
 
     if (control instanceof HTMLInputElement) {
-      if (control.getAttribute('role') === 'combobox') {
-        questions.push({ text, question: { kind: 'combobox', control } });
+      if (control.getAttribute("role") === "combobox") {
+        questions.push({ text, question: { kind: "combobox", control } });
       } else if (TEXT_INPUT_TYPES.has(control.type)) {
-        questions.push({ text, question: { kind: 'text', control } });
+        questions.push({ text, question: { kind: "text", control } });
       }
     } else if (control instanceof HTMLSelectElement) {
-      questions.push({ text, question: { kind: 'select', control } });
+      questions.push({ text, question: { kind: "select", control } });
     } else if (control instanceof HTMLTextAreaElement) {
-      questions.push({ text, question: { kind: 'text', control } });
+      questions.push({ text, question: { kind: "text", control } });
     }
   }
 
@@ -314,7 +320,7 @@ async function fillCustomQuestions(
   for (const entry of entries) {
     const question = entry.question.trim();
     const answer = entry.answer.trim();
-    if (question === '' || answer === '') continue;
+    if (question === "" || answer === "") continue;
 
     const match = pageQuestions.find(({ text }) => text.includes(question));
     if (!match) {
@@ -326,19 +332,19 @@ async function fillCustomQuestions(
     const pageQuestion = match.question;
 
     switch (pageQuestion.kind) {
-      case 'text': {
-        if (pageQuestion.control.value.trim() !== '') break; // never overwrite
+      case "text": {
+        if (pageQuestion.control.value.trim() !== "") break; // never overwrite
         setFieldValue(pageQuestion.control, answer);
         filledCount += 1;
         break;
       }
 
-      case 'select': {
-        if (pageQuestion.control.value !== '') break;
+      case "select": {
+        if (pageQuestion.control.value !== "") break;
         const option = [...pageQuestion.control.options].find(
           (candidate) =>
             candidate.value === answer ||
-            (candidate.textContent ?? '').trim() === answer,
+            (candidate.textContent ?? "").trim() === answer,
         );
         if (option) {
           setFieldValue(pageQuestion.control, option.value);
@@ -351,14 +357,14 @@ async function fillCustomQuestions(
         break;
       }
 
-      case 'combobox': {
+      case "combobox": {
         const control = pageQuestion.control;
         // react-select renders the chosen option inside the control shell —
         // a present `.select__single-value` means this question is answered.
-        const shell = control.closest('.select__control');
+        const shell = control.closest(".select__control");
         if (
-          control.value.trim() !== '' ||
-          shell?.querySelector('.select__single-value')
+          control.value.trim() !== "" ||
+          shell?.querySelector(".select__single-value")
         ) {
           break;
         }
@@ -380,16 +386,21 @@ async function fillCustomQuestions(
  * because a LinkedIn URL appears on nearly every application. Never overwrites
  * a value the applicant already typed.
  */
-async function fillLinkedInField(profile: JobApplicationProfile): Promise<number> {
-  const linkedIn = (profile.personalInfo.linkedIn ?? '').trim();
+async function fillLinkedInField(
+  profile: JobApplicationProfile,
+): Promise<number> {
+  const linkedIn = (profile.personalInfo.linkedIn ?? "").trim();
   if (!linkedIn) return 0;
 
   const match = collectPageQuestions().find(({ text }) =>
-    text.toLowerCase().includes('linkedin profile'),
+    text.toLowerCase().includes("linkedin profile"),
   );
   if (!match) return 0;
 
-  if (match.question.kind === 'text' && match.question.control.value.trim() === '') {
+  if (
+    match.question.kind === "text" &&
+    match.question.control.value.trim() === ""
+  ) {
     setFieldValue(match.question.control, linkedIn);
     return 1;
   }
@@ -406,19 +417,19 @@ async function fillLinkedInField(profile: JobApplicationProfile): Promise<number
 async function fillWillingToRelocateField(
   profile: JobApplicationProfile,
 ): Promise<number> {
-  const answer = (profile.personalInfo.willingToRelocate ?? '').trim();
+  const answer = (profile.personalInfo.willingToRelocate ?? "").trim();
   if (!answer) return 0;
 
   const match = collectPageQuestions().find(({ text }) =>
-    text.toLowerCase().includes('willing to relocate'),
+    text.toLowerCase().includes("willing to relocate"),
   );
-  if (!match || match.question.kind !== 'combobox') return 0;
+  if (!match || match.question.kind !== "combobox") return 0;
 
   const control = match.question.control;
-  const shell = control.closest('.select__control');
+  const shell = control.closest(".select__control");
   if (
-    control.value.trim() !== '' ||
-    shell?.querySelector('.select__single-value')
+    control.value.trim() !== "" ||
+    shell?.querySelector(".select__single-value")
   ) {
     return 0;
   }
@@ -434,16 +445,18 @@ async function fillWillingToRelocateField(
  * by case-insensitive contains against the rendered question text. The answer
  * is filled verbatim. Never overwrites a value the applicant already typed.
  */
-async function fillHowDidYouHearField(profile: JobApplicationProfile): Promise<number> {
-  const answer = (profile.personalInfo.howDidYouHear ?? '').trim();
+async function fillHowDidYouHearField(
+  profile: JobApplicationProfile,
+): Promise<number> {
+  const answer = (profile.personalInfo.howDidYouHear ?? "").trim();
   if (!answer) return 0;
 
   const match = collectPageQuestions().find(({ text }) =>
-    text.toLowerCase().includes('how did you hear'),
+    text.toLowerCase().includes("how did you hear"),
   );
-  if (!match || match.question.kind !== 'text') return 0;
+  if (!match || match.question.kind !== "text") return 0;
 
-  if (match.question.control.value.trim() !== '') return 0; // never overwrite
+  if (match.question.control.value.trim() !== "") return 0; // never overwrite
   setFieldValue(match.question.control, answer);
   return 1;
 }
@@ -460,7 +473,9 @@ async function fillHowDidYouHearField(profile: JobApplicationProfile): Promise<n
  */
 function attachResume(input: HTMLInputElement, resume: ResumeFile): boolean {
   if (input.files && input.files.length > 0) {
-    console.info(`${LOG_PREFIX} resume already attached — leaving it untouched.`);
+    console.info(
+      `${LOG_PREFIX} resume already attached — leaving it untouched.`,
+    );
     return false;
   }
 
@@ -473,8 +488,8 @@ function attachResume(input: HTMLInputElement, resume: ResumeFile): boolean {
   dataTransfer.items.add(file);
 
   input.files = dataTransfer.files;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  input.dispatchEvent(new Event('change', { bubbles: true }));
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
 
   console.info(
     `${LOG_PREFIX} attached resume "${resume.name}" (${resume.size} bytes).`,
@@ -498,7 +513,7 @@ async function fillNow(
   ];
 
   for (const { selector, value } of targets) {
-    if (value === '') continue; // nothing in the profile for this field
+    if (value === "") continue; // nothing in the profile for this field
 
     const el = locateEmptyField(selector);
     if (el) {
@@ -520,7 +535,7 @@ async function fillNow(
   const resume = profile.personalInfo.resume;
   if (isResumeFile(resume)) {
     const input = document.querySelector<HTMLInputElement>(LOCATORS.resume);
-    if (input?.type === 'file') {
+    if (input?.type === "file") {
       if (attachResume(input, resume)) filled.push(input);
     }
   }
@@ -529,8 +544,8 @@ async function fillNow(
 }
 
 export const greenhouseAdapter: PlatformAdapter = {
-  id: 'greenhouse',
-  hosts: ['boards.greenhouse.io', 'job-boards.greenhouse.io'],
+  id: "greenhouse",
+  hosts: ["boards.greenhouse.io", "job-boards.greenhouse.io"],
 
   /** Runs on button click — every init race on the page is over by then. */
   async autofill(profile) {
@@ -552,8 +567,10 @@ export const greenhouseAdapter: PlatformAdapter = {
     } else {
       console.info(
         `${LOG_PREFIX} filled ${filledCount} field(s)` +
-          (customCount > 0 ? ` (including ${customCount} custom question(s))` : '') +
-          '.',
+          (customCount > 0
+            ? ` (including ${customCount} custom question(s))`
+            : "") +
+          ".",
       );
     }
     return filledCount;

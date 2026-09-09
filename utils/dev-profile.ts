@@ -1,4 +1,4 @@
-import type { JobApplicationProfile } from '~/types/profile';
+import type { JobApplicationProfile } from "~/types/profile";
 
 /**
  * Demo profile used as the storage fallback during development, so the
@@ -10,26 +10,26 @@ import type { JobApplicationProfile } from '~/types/profile';
  */
 export const DEV_TEST_PROFILE: JobApplicationProfile = {
   personalInfo: {
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 019-2834',
-    country: 'United States',
-    location: 'San Francisco, CA',
-    linkedIn: 'https://www.linkedin.com/in/johndoe',
+    firstName: "John",
+    lastName: "Doe",
+    email: "john.doe@example.com",
+    phone: "+1 (555) 019-2834",
+    country: "United States",
+    location: "San Francisco, CA",
+    linkedIn: "https://www.linkedin.com/in/johndoe",
     willingToRelocate: "I am willing to relocate to this job's location.",
-    howDidYouHear: 'LinkedIn',
+    howDidYouHear: "LinkedIn",
     resume: {
-      name: 'John_Doe_Resume.pdf',
-      mimeType: 'application/pdf',
+      name: "John_Doe_Resume.pdf",
+      mimeType: "application/pdf",
       size: 6,
-      base64: 'cmVzdW1l', // "resume" — stand-in bytes, dev fixture only
+      base64: "cmVzdW1l", // "resume" — stand-in bytes, dev fixture only
     },
   },
   customQuestions: [
     {
-      question: 'immigration sponsorship',
-      answer: 'No',
+      question: "immigration sponsorship",
+      answer: "No",
     },
   ],
   updatedAt: null,

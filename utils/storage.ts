@@ -1,9 +1,9 @@
-import { storage } from 'wxt/utils/storage';
+import { storage } from "wxt/utils/storage";
 import {
   createEmptyProfile,
   type JobApplicationProfile,
-} from '~/types/profile';
-import { DEV_TEST_PROFILE } from '~/utils/dev-profile';
+} from "~/types/profile";
+import { DEV_TEST_PROFILE } from "~/utils/dev-profile";
 
 /**
  * Fallback used when nothing is stored yet.
@@ -29,6 +29,6 @@ function fallbackProfile(): JobApplicationProfile {
  * types/profile.ts), pass it here as `version` and register `migrations`.
  */
 export const profileStorage = storage.defineItem<JobApplicationProfile>(
-  'local:profile',
+  "local:profile",
   { fallback: fallbackProfile() },
 );

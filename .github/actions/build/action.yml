@@ -3,8 +3,8 @@
 # Assumes the repository is already checked out by the caller — keep cheap
 # fail-fast steps (like the tag/version check) before this action.
 # Changes to how BeamApply is verified go here and apply everywhere.
-name: 'Install, typecheck, eslint, build, web-ext lint'
-description: 'Install dependencies, run tsc and eslint, build Firefox MV3, and run web-ext lint.'
+name: "Install, typecheck, eslint, build, web-ext lint"
+description: "Install dependencies, run tsc and eslint, build Firefox MV3, and run web-ext lint."
 runs:
   using: composite
   steps:
