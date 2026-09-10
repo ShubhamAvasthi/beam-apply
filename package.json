@@ -15,11 +15,13 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "prepare": "husky",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.10.0",
+    "husky": "^9.1.7",
     "prettier": "^3.9.6",
     "sharp": "^0.35.4",
     "typescript": "^5.9.3",
