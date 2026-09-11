@@ -15,7 +15,7 @@ Make sure you have [Bun](https://bun.sh) installed.
 
 ### Development
 
-- **Start dev server (Firefox):**
+- **Start dev server (Firefox — the default):**
   ```bash
   bun dev
   ```
@@ -43,6 +43,8 @@ Make sure you have [Bun](https://bun.sh) installed.
   bun format
   ```
 
+Every browser-specific command also exists in explicit form (`dev:firefox`, `build:firefox`, `zip:firefox`) — the unsuffixed command is always Firefox.
+
 ### Editor Setup
 
 Install the ESLint and Prettier extensions for your editor so it flags the same issues CI does:
@@ -69,7 +71,7 @@ Every editor with an ESLint/Prettier integration (VS Code, WebStorm, Neovim, …
 
 ### Production & Distribution
 
-- **Build extension (Firefox):**
+- **Build extension (Firefox — the default):**
   ```bash
   bun run build
   ```
@@ -77,9 +79,13 @@ Every editor with an ESLint/Prettier integration (VS Code, WebStorm, Neovim, …
   ```bash
   bun run build:chrome
   ```
-- **Package extension into zip:**
+- **Package Firefox zip (+ addons.mozilla.com sources zip):**
   ```bash
   bun zip
+  ```
+- **Package Chrome zip:**
+  ```bash
+  bun zip:chrome
   ```
 
 ## Contributors
