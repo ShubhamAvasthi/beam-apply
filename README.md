@@ -6,6 +6,7 @@
 [![Release](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/release.yml/badge.svg)](https://github.com/ShubhamAvasthi/beam-apply/actions/workflows/release.yml)
 
 [![Firefox Add-on](https://img.shields.io/amo/v/beamapply?logo=firefoxbrowser)](https://addons.mozilla.org/firefox/addon/beamapply/)
+[![Chrome Extension](https://img.shields.io/chrome-web-store/v/ccljmdddlchecfojmcjlfmddfbclcnjn?logo=googlechrome)](https://chromewebstore.google.com/detail/beamapply/ccljmdddlchecfojmcjlfmddfbclcnjn)
 
 A fast, deterministic, privacy-first browser extension for autofilling job applications.
 
