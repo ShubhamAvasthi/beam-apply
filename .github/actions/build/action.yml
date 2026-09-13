@@ -1,10 +1,11 @@
 # Shared verification pipeline used by ci.yml and release.yml so both entry
-# points run byte-identical checks (the same ones AMO runs during review).
+# points run byte-identical checks (the same ones AMO runs during review, plus
+# a Chrome MV3 build so both store targets are compiled on every run).
 # Assumes the repository is already checked out by the caller — keep cheap
 # fail-fast steps (like the tag/version check) before this action.
 # Changes to how BeamApply is verified go here and apply everywhere.
 name: "Install, typecheck, eslint, prettier, build, web-ext lint"
-description: "Install dependencies, run tsc, eslint, prettier check, build Firefox MV3, and run web-ext lint."
+description: "Install dependencies, run tsc, eslint, prettier check, build Firefox MV3 and Chrome MV3, and run web-ext lint."
 runs:
   using: composite
   steps:
@@ -27,8 +28,12 @@ runs:
       run: bun format:check
       shell: bash
 
-    - name: Build
-      run: bun run build
+    - name: Build (Firefox MV3)
+      run: bun run build:firefox
+      shell: bash
+
+    - name: Build (Chrome MV3)
+      run: bun run build:chrome
       shell: bash
 
     - name: Lint (web-ext)
