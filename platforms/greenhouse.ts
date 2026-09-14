@@ -7,18 +7,80 @@ import {
 import type { PlatformAdapter } from "./types";
 
 /**
- * Fields we can fill on Greenhouse, keyed by profile field — one selector
- * each.
+ * One fixed-selector field on the Greenhouse form. Each instance carries
+ * its own selector — there is no separate locator table. Implemented by
+ * {@link TextField} (written verbatim) and {@link AutocompleteField}
+ * (country/location typeaheads).
  */
-const LOCATORS = {
-  firstName: "#first_name",
-  lastName: "#last_name",
-  email: "#email",
-  phone: "#phone",
-  country: "#country",
-  location: "#candidate-location",
-  resume: "#resume",
-} as const;
+interface Field {
+  /**
+   * Fills this field when it exists on the form and is still empty —
+   * values the applicant already typed are never overwritten. Returns
+   * whether the field was written.
+   */
+  fill(profile: JobApplicationProfile): Promise<boolean>;
+}
+
+/** A field whose value is written verbatim into its input or select. */
+class TextField implements Field {
+  constructor(
+    private readonly selector: string,
+    private readonly getValue: (profile: JobApplicationProfile) => string,
+  ) {}
+
+  async fill(profile: JobApplicationProfile): Promise<boolean> {
+    const value = this.getValue(profile);
+    if (value === "") return false; // nothing in the profile for this field
+
+    const el = document.querySelector<HTMLInputElement | HTMLSelectElement>(
+      this.selector,
+    );
+    if (!el || el.value.trim() !== "") return false;
+
+    setFieldValue(el, value);
+    return true;
+  }
+}
+
+/**
+ * A country/location-style typeahead field: the value is written
+ * paste-style and the matching dropdown option is clicked. Awaited —
+ * focusing the next field would blur and close this field's dropdown
+ * before its option gets clicked.
+ */
+class AutocompleteField implements Field {
+  constructor(
+    private readonly selector: string,
+    private readonly getValue: (profile: JobApplicationProfile) => string,
+  ) {}
+
+  async fill(profile: JobApplicationProfile): Promise<boolean> {
+    const value = this.getValue(profile);
+    if (value === "") return false; // nothing in the profile for this field
+
+    const input = document.querySelector<HTMLInputElement>(this.selector);
+    if (!input || input.value.trim() !== "") return false;
+
+    await fillAutocomplete(input, value);
+    return true;
+  }
+}
+
+/**
+ * The fixed-id fields Greenhouse renders, in fill order. Adding a field =
+ * adding one entry here — the selector travels with the field.
+ */
+const FIELDS: readonly Field[] = [
+  new TextField("#first_name", (profile) => profile.personalInfo.firstName),
+  new TextField("#last_name", (profile) => profile.personalInfo.lastName),
+  new TextField("#email", (profile) => profile.personalInfo.email),
+  new TextField("#phone", (profile) => profile.personalInfo.phone),
+  new AutocompleteField("#country", (profile) => profile.personalInfo.country),
+  new AutocompleteField(
+    "#candidate-location",
+    (profile) => profile.personalInfo.location,
+  ),
+];
 
 const LOG_PREFIX = "[BeamApply/greenhouse]";
 
@@ -45,19 +107,6 @@ function setFieldValue(
   descriptor?.set?.call(element, value);
   element.dispatchEvent(new Event("input", { bubbles: true }));
   element.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-/**
- * First matching locator whose field exists AND is still empty — values
- * the applicant already typed are never overwritten.
- */
-function locateEmptyField(
-  selector: string,
-): HTMLInputElement | HTMLSelectElement | null {
-  const el = document.querySelector<HTMLInputElement | HTMLSelectElement>(
-    selector,
-  );
-  return el && el.value.trim() === "" ? el : null;
 }
 
 function wait(ms: number): Promise<void> {
@@ -497,50 +546,23 @@ function attachResume(input: HTMLInputElement, resume: ResumeFile): boolean {
   return true;
 }
 
-/** Fills whatever supported fields exist right now; returns the elements written. */
-async function fillNow(
-  profile: JobApplicationProfile,
-): Promise<Array<HTMLInputElement | HTMLSelectElement>> {
-  const filled: Array<HTMLInputElement | HTMLSelectElement> = [];
-
-  const targets: Array<{ selector: string; value: string }> = [
-    { selector: LOCATORS.firstName, value: profile.personalInfo.firstName },
-    { selector: LOCATORS.lastName, value: profile.personalInfo.lastName },
-    { selector: LOCATORS.email, value: profile.personalInfo.email },
-    { selector: LOCATORS.phone, value: profile.personalInfo.phone },
-    { selector: LOCATORS.country, value: profile.personalInfo.country },
-    { selector: LOCATORS.location, value: profile.personalInfo.location },
-  ];
-
-  for (const { selector, value } of targets) {
-    if (value === "") continue; // nothing in the profile for this field
-
-    const el = locateEmptyField(selector);
-    if (el) {
-      if (
-        (selector === LOCATORS.country || selector === LOCATORS.location) &&
-        el instanceof HTMLInputElement
-      ) {
-        // Await completion — focusing the next field would blur and close
-        // this field's dropdown before its option gets clicked.
-        await fillAutocomplete(el, value);
-      } else {
-        setFieldValue(el, value);
-      }
-      filled.push(el);
-    }
+/** Fills whatever supported fields exist right now; returns how many were written. */
+async function fillNow(profile: JobApplicationProfile): Promise<number> {
+  let filledCount = 0;
+  for (const field of FIELDS) {
+    if (await field.fill(profile)) filledCount += 1;
   }
 
   // Resume is a file, not a text value — attach it to the upload input.
   const resume = profile.personalInfo.resume;
   if (isResumeFile(resume)) {
-    const input = document.querySelector<HTMLInputElement>(LOCATORS.resume);
-    if (input?.type === "file") {
-      if (attachResume(input, resume)) filled.push(input);
+    const input = document.querySelector<HTMLInputElement>("#resume");
+    if (input?.type === "file" && attachResume(input, resume)) {
+      filledCount += 1;
     }
   }
 
-  return filled;
+  return filledCount;
 }
 
 export const greenhouseAdapter: PlatformAdapter = {
@@ -549,7 +571,7 @@ export const greenhouseAdapter: PlatformAdapter = {
 
   /** Runs on button click — every init race on the page is over by then. */
   async autofill(profile) {
-    const filledElements = await fillNow(profile);
+    const fixedCount = await fillNow(profile);
     const customCount = await fillCustomQuestions(
       profile.customQuestions ?? [], // profiles saved before custom questions
     );
@@ -557,7 +579,7 @@ export const greenhouseAdapter: PlatformAdapter = {
     const willingToRelocateCount = await fillWillingToRelocateField(profile);
     const howDidYouHearCount = await fillHowDidYouHearField(profile);
     const filledCount =
-      filledElements.length +
+      fixedCount +
       customCount +
       linkedInCount +
       willingToRelocateCount +
