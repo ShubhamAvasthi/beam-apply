@@ -67,8 +67,59 @@ class AutocompleteField implements Field {
 }
 
 /**
- * The fixed-id fields Greenhouse renders, in fill order. Adding a field =
- * adding one entry here — the selector travels with the field.
+ * The stored resume, attached to the file upload input.
+ *
+ * Browsers block assigning a path to `input.value`, and `input.files` can
+ * only accept a `FileList` produced from user interaction or a
+ * `DataTransfer`. We rebuild the original `File` from the stored base64 and
+ * feed it through a `DataTransfer` — the same technique file-attaching
+ * extensions use — then dispatch `input`/`change` so framework listeners
+ * (e.g. React) see the upload.
+ */
+class ResumeField implements Field {
+  constructor(
+    private readonly selector: string,
+    private readonly getValue: (
+      profile: JobApplicationProfile,
+    ) => ResumeFile | null,
+  ) {}
+
+  async fill(profile: JobApplicationProfile): Promise<boolean> {
+    const resume = this.getValue(profile);
+    if (!isResumeFile(resume)) return false;
+
+    const input = document.querySelector<HTMLInputElement>(this.selector);
+    if (input?.type !== "file") return false;
+
+    if (input.files && input.files.length > 0) {
+      console.info(
+        `${LOG_PREFIX} resume already attached — leaving it untouched.`,
+      );
+      return false;
+    }
+
+    const binary = atob(resume.base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+
+    const file = new File([bytes], resume.name, { type: resume.mimeType });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    input.files = dataTransfer.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+
+    console.info(
+      `${LOG_PREFIX} attached resume "${resume.name}" (${resume.size} bytes).`,
+    );
+    return true;
+  }
+}
+
+/**
+ * The fields Greenhouse renders, in fill order. Adding a field = adding
+ * one entry here — the selector travels with the field.
  */
 const FIELDS: readonly Field[] = [
   new TextField("#first_name", (profile) => profile.personalInfo.firstName),
@@ -80,6 +131,7 @@ const FIELDS: readonly Field[] = [
     "#candidate-location",
     (profile) => profile.personalInfo.location,
   ),
+  new ResumeField("#resume", (profile) => profile.personalInfo.resume),
 ];
 
 const LOG_PREFIX = "[BeamApply/greenhouse]";
@@ -510,58 +562,12 @@ async function fillHowDidYouHearField(
   return 1;
 }
 
-/**
- * Attaches the stored resume to a file input.
- *
- * Browsers block assigning a path to `input.value`, and `input.files` can
- * only accept a `FileList` produced from user interaction or a
- * `DataTransfer`. We rebuild the original `File` from the stored base64 and
- * feed it through a `DataTransfer` — the same technique file-attaching
- * extensions use — then dispatch `input`/`change` so framework listeners
- * (e.g. React) see the upload.
- */
-function attachResume(input: HTMLInputElement, resume: ResumeFile): boolean {
-  if (input.files && input.files.length > 0) {
-    console.info(
-      `${LOG_PREFIX} resume already attached — leaving it untouched.`,
-    );
-    return false;
-  }
-
-  const binary = atob(resume.base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-
-  const file = new File([bytes], resume.name, { type: resume.mimeType });
-  const dataTransfer = new DataTransfer();
-  dataTransfer.items.add(file);
-
-  input.files = dataTransfer.files;
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
-
-  console.info(
-    `${LOG_PREFIX} attached resume "${resume.name}" (${resume.size} bytes).`,
-  );
-  return true;
-}
-
 /** Fills whatever supported fields exist right now; returns how many were written. */
 async function fillNow(profile: JobApplicationProfile): Promise<number> {
   let filledCount = 0;
   for (const field of FIELDS) {
     if (await field.fill(profile)) filledCount += 1;
   }
-
-  // Resume is a file, not a text value — attach it to the upload input.
-  const resume = profile.personalInfo.resume;
-  if (isResumeFile(resume)) {
-    const input = document.querySelector<HTMLInputElement>("#resume");
-    if (input?.type === "file" && attachResume(input, resume)) {
-      filledCount += 1;
-    }
-  }
-
   return filledCount;
 }
 
