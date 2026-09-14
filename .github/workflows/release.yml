@@ -5,36 +5,42 @@
 #      manifest version — AMO requires strictly increasing versions).
 #   2. git tag v1.0.1 && git push origin main v1.0.1
 #
-# The workflow verifies the tag matches the package version, runs the shared
-# build pipeline (typecheck, build, lint — identical to CI, see
-# .github/actions/build), zips both store targets (Firefox extension + AMO
-# sources zip, Chrome extension), signs and uploads the Firefox version to
-# addons.mozilla.org, uploads the Chrome version to the Chrome Web Store, and
-# attaches every zip to a GitHub Release for provenance.
+# A tiny first job verifies the tag matches the package version, then three
+# publishing jobs run in parallel, each re-running the shared build pipeline
+# (typecheck, build, lint — identical to CI, see .github/actions/build) and
+# packaging from the same tag commit before it publishes anything:
 #
-# The checks run inside the release run itself, strictly *before* anything is
+#   * Sign and upload to AMO (Firefox extension + sources zip)
+#   * Upload and publish to Chrome Web Store (Chrome extension zip)
+#   * Create GitHub Release — attaches every zip for provenance; runs only
+#     when both store jobs succeeded
+#
+# Each store is its own job so a failure stays contained. The usual suspect
+# is a store credential, and a failed store can be retried alone with
+# "Re-run failed jobs" on the run: it re-executes the affected store plus the
+# GitHub Release without replaying the store that already shipped — neither
+# store can replay anyway (AMO's `web-ext sign` refuses a version that
+# already exists, and the Chrome Web Store rejects a duplicate-version
+# upload), so a repeated tag can't double-submit; bump the version and
+# re-tag instead. The checks still run strictly *before* anything is
 # published — a release can't ship code that doesn't typecheck, build, and
 # lint. (A tag push is a separate workflow run, so this workflow cannot
-# `needs:` the CI run that already passed for the same commit; re-running the
-# shared pipeline is the reliable equivalent and costs about a minute.)
+# `needs:` the CI run that already passed for the same commit; re-running
+# the shared pipeline is the reliable equivalent and costs about a minute.)
 #
 # One-time setup — AMO API credentials (https://addons.mozilla.org/developers/
 # addon/api/key/): add repository secrets AMO_JWT_ISSUER and AMO_JWT_SECRET.
 #
-# One-time setup — Chrome Web Store API credentials
-# (https://developer.chrome.com/docs/webstore/using-webstore-api): enable the
-# Chrome Web Store API on a Google Cloud project, create an OAuth client, mint
-# a refresh token for the https://www.googleapis.com/auth/chromewebstore
-# scope, then add repository secrets CWS_CLIENT_ID, CWS_CLIENT_SECRET,
-# CWS_REFRESH_TOKEN, and CWS_PUBLISHER_ID (the account ID from the Developer
-# Dashboard). Without either store's credentials its upload step is skipped
-# and only the GitHub Release is created. The item ID below is public — it is
-# the store listing URL and the README badge.
-#
-# Note: both stores refuse a version that already exists (AMO's `web-ext
-# sign` errors on a repeat, the Chrome Web Store rejects a duplicate-version
-# upload), so a repeated tag can't double-submit; bump the version and
-# re-tag instead.
+# One-time setup — Chrome Web Store API credentials: follow the CLI's key
+# guide (https://github.com/fregante/chrome-webstore-upload-keys) — create an
+# OAuth client (type "Desktop app"), enable the Chrome Web Store API at
+# https://console.cloud.google.com/apis/library/chromewebstore.googleapis.com,
+# then mint a refresh token with `bunx chrome-webstore-upload-keys` — and add
+# repository secrets CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN, and
+# CWS_PUBLISHER_ID (the account ID from the Developer Dashboard). Without
+# either store's credentials its upload step is skipped and only the GitHub
+# Release is created. The item ID below is public — it is the store listing
+# URL and the README badge.
 name: Release
 
 on:
@@ -45,9 +51,11 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Release to AMO + Chrome Web Store + GitHub
+  version:
+    name: Verify tag matches package version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,14 +72,19 @@ jobs:
           echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
           echo "Releasing $PKG_VERSION"
 
+  amo:
+    name: Sign and upload to AMO
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Install, typecheck, build, lint (shared with CI)
         uses: ./.github/actions/build
 
       - name: Package Firefox (extension + sources zips)
         run: bun zip:firefox
-
-      - name: Package Chrome (extension zip)
-        run: bun zip:chrome
 
       - name: Sign and upload to AMO
         env:
@@ -84,7 +97,21 @@ jobs:
             --api-key "$AMO_JWT_ISSUER" \
             --api-secret "$AMO_JWT_SECRET" \
             --channel listed \
-            --upload-source-code ".output/beam-apply-${{ steps.version.outputs.version }}-sources.zip"
+            --upload-source-code ".output/beam-apply-${{ needs.version.outputs.version }}-sources.zip"
+
+  cws:
+    name: Upload and publish to Chrome Web Store
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install, typecheck, build, lint (shared with CI)
+        uses: ./.github/actions/build
+
+      - name: Package Chrome (extension zip)
+        run: bun zip:chrome
 
       # The bare command uploads and then submits for review, so a tag alone
       # ships the update once Google approves it; change it to `upload` to
@@ -101,7 +128,24 @@ jobs:
         if: env.CLIENT_ID != '' && env.CLIENT_SECRET != '' && env.REFRESH_TOKEN != '' && env.PUBLISHER_ID != ''
         run: |
           bunx chrome-webstore-upload \
-            --source ".output/beam-apply-${{ steps.version.outputs.version }}-chrome.zip"
+            --source ".output/beam-apply-${{ needs.version.outputs.version }}-chrome.zip"
+
+  github-release:
+    name: Create GitHub Release
+    needs: [amo, cws]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install, typecheck, build, lint (shared with CI)
+        uses: ./.github/actions/build
+
+      - name: Package Firefox (extension + sources zips)
+        run: bun zip:firefox
+
+      - name: Package Chrome (extension zip)
+        run: bun zip:chrome
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
