@@ -1,5 +1,4 @@
 import {
-  type CustomQuestion,
   isResumeFile,
   type JobApplicationProfile,
   type ResumeFile,
@@ -14,11 +13,11 @@ import type { PlatformAdapter } from "./types";
  */
 interface Field {
   /**
-   * Fills this field when it exists on the form and is still empty —
+   * Fills this field when it exists on the form and is unanswered —
    * values the applicant already typed are never overwritten. Returns
-   * whether the field was written.
+   * how many fields were written (custom questions can be several).
    */
-  fill(profile: JobApplicationProfile): Promise<boolean>;
+  fill(profile: JobApplicationProfile): Promise<number>;
 }
 
 /** A field whose value is written verbatim into its input or select. */
@@ -28,17 +27,17 @@ class TextField implements Field {
     private readonly getValue: (profile: JobApplicationProfile) => string,
   ) {}
 
-  async fill(profile: JobApplicationProfile): Promise<boolean> {
+  async fill(profile: JobApplicationProfile): Promise<number> {
     const value = this.getValue(profile);
-    if (value === "") return false; // nothing in the profile for this field
+    if (value === "") return 0; // nothing in the profile for this field
 
     const el = document.querySelector<HTMLInputElement | HTMLSelectElement>(
       this.selector,
     );
-    if (!el || el.value.trim() !== "") return false;
+    if (!el || el.value.trim() !== "") return 0;
 
     setFieldValue(el, value);
-    return true;
+    return 1;
   }
 }
 
@@ -54,15 +53,15 @@ class AutocompleteField implements Field {
     private readonly getValue: (profile: JobApplicationProfile) => string,
   ) {}
 
-  async fill(profile: JobApplicationProfile): Promise<boolean> {
+  async fill(profile: JobApplicationProfile): Promise<number> {
     const value = this.getValue(profile);
-    if (value === "") return false; // nothing in the profile for this field
+    if (value === "") return 0; // nothing in the profile for this field
 
     const input = document.querySelector<HTMLInputElement>(this.selector);
-    if (!input || input.value.trim() !== "") return false;
+    if (!input || input.value.trim() !== "") return 0;
 
     await fillAutocomplete(input, value);
-    return true;
+    return 1;
   }
 }
 
@@ -84,18 +83,18 @@ class ResumeField implements Field {
     ) => ResumeFile | null,
   ) {}
 
-  async fill(profile: JobApplicationProfile): Promise<boolean> {
+  async fill(profile: JobApplicationProfile): Promise<number> {
     const resume = this.getValue(profile);
-    if (!isResumeFile(resume)) return false;
+    if (!isResumeFile(resume)) return 0;
 
     const input = document.querySelector<HTMLInputElement>(this.selector);
-    if (input?.type !== "file") return false;
+    if (input?.type !== "file") return 0;
 
     if (input.files && input.files.length > 0) {
       console.info(
         `${LOG_PREFIX} resume already attached — leaving it untouched.`,
       );
-      return false;
+      return 0;
     }
 
     const binary = atob(resume.base64);
@@ -113,13 +112,164 @@ class ResumeField implements Field {
     console.info(
       `${LOG_PREFIX} attached resume "${resume.name}" (${resume.size} bytes).`,
     );
-    return true;
+    return 1;
   }
 }
 
 /**
- * The fields Greenhouse renders, in fill order. Adding a field = adding
- * one entry here — the selector travels with the field.
+ * Fills every stored custom question whose text appears within a rendered
+ * question on the form (first match wins — keep stored questions
+ * distinctive). Never overwrites: answered questions and already-selected
+ * dropdowns are skipped, and a stored answer with no matching option is
+ * reported, not guessed.
+ */
+class CustomQuestionsField implements Field {
+  async fill(profile: JobApplicationProfile): Promise<number> {
+    const entries = profile.customQuestions ?? []; // profiles saved before custom questions
+    if (entries.length === 0) return 0;
+
+    const pageQuestions = collectPageQuestions();
+    let filledCount = 0;
+
+    for (const entry of entries) {
+      const question = entry.question.trim();
+      const answer = entry.answer.trim();
+      if (question === "" || answer === "") continue;
+
+      const match = pageQuestions.find(({ text }) => text.includes(question));
+      if (!match) {
+        console.info(
+          `${LOG_PREFIX} no question on this form contains "${question}".`,
+        );
+        continue;
+      }
+      const pageQuestion = match.question;
+
+      switch (pageQuestion.kind) {
+        case "text": {
+          if (pageQuestion.control.value.trim() !== "") break; // never overwrite
+          setFieldValue(pageQuestion.control, answer);
+          filledCount += 1;
+          break;
+        }
+
+        case "select": {
+          if (pageQuestion.control.value !== "") break;
+          const option = [...pageQuestion.control.options].find(
+            (candidate) =>
+              candidate.value === answer ||
+              (candidate.textContent ?? "").trim() === answer,
+          );
+          if (option) {
+            setFieldValue(pageQuestion.control, option.value);
+            filledCount += 1;
+          } else {
+            console.warn(
+              `${LOG_PREFIX} question matched but no option "${answer}" exists.`,
+            );
+          }
+          break;
+        }
+
+        case "combobox": {
+          const control = pageQuestion.control;
+          // react-select renders the chosen option inside the control shell —
+          // a present `.select__single-value` means this question is answered.
+          const shell = control.closest(".select__control");
+          if (
+            control.value.trim() !== "" ||
+            shell?.querySelector(".select__single-value")
+          ) {
+            break;
+          }
+          // Exact matches only — a partial answer must never pick an option.
+          if (await fillAutocomplete(control, answer, true)) filledCount += 1;
+          break;
+        }
+      }
+    }
+
+    return filledCount;
+  }
+}
+
+/**
+ * A requisition-specific free-text question with no fixed selector,
+ * located by case-insensitive substring against the rendered question
+ * text. Surfaced as a first-class optional field when a value appears on
+ * nearly every application (a LinkedIn URL, for example). Filled
+ * verbatim; never overwrites a value the applicant already typed.
+ */
+class TextQuestionField implements Field {
+  constructor(
+    private readonly needle: string,
+    private readonly getValue: (
+      profile: JobApplicationProfile,
+    ) => string | undefined | null,
+  ) {}
+
+  async fill(profile: JobApplicationProfile): Promise<number> {
+    const value = (this.getValue(profile) ?? "").trim();
+    if (!value) return 0;
+
+    const match = collectPageQuestions().find(({ text }) =>
+      text.toLowerCase().includes(this.needle),
+    );
+    if (!match || match.question.kind !== "text") return 0;
+
+    if (match.question.control.value.trim() !== "") return 0; // never overwrite
+    setFieldValue(match.question.control, value);
+    return 1;
+  }
+}
+
+/**
+ * A requisition-specific react-select combobox question, located by
+ * case-insensitive substring against the rendered question text. Filled
+ * by typing the answer and clicking the exact matching option — a partial
+ * answer must never pick an option, since comboboxes only accept values
+ * from their dropdown. Never overwrites an already-selected value.
+ */
+class ComboboxQuestionField implements Field {
+  constructor(
+    private readonly needle: string,
+    private readonly getValue: (
+      profile: JobApplicationProfile,
+    ) => string | undefined | null,
+  ) {}
+
+  async fill(profile: JobApplicationProfile): Promise<number> {
+    const value = (this.getValue(profile) ?? "").trim();
+    if (!value) return 0;
+
+    const match = collectPageQuestions().find(({ text }) =>
+      text.toLowerCase().includes(this.needle),
+    );
+    if (!match || match.question.kind !== "combobox") return 0;
+
+    const control = match.question.control;
+    // react-select renders the chosen option inside the control shell —
+    // a present `.select__single-value` means this question is answered.
+    const shell = control.closest(".select__control");
+    if (
+      control.value.trim() !== "" ||
+      shell?.querySelector(".select__single-value")
+    ) {
+      return 0; // never overwrite
+    }
+
+    // Type the answer, react-select filters to the matching option, and the
+    // exact-only matcher clicks it.
+    const clicked = await fillAutocomplete(control, value, true);
+    return clicked ? 1 : 0;
+  }
+}
+
+/**
+ * Every autofillable field on Greenhouse, in fill order — the order a
+ * button click fills them in, with dropdown-driven fields awaited so a
+ * later field's focus can't close an earlier field's dropdown. Adding a
+ * field = adding one object here.
  */
 const FIELDS: readonly Field[] = [
   new TextField("#first_name", (profile) => profile.personalInfo.firstName),
@@ -132,6 +282,19 @@ const FIELDS: readonly Field[] = [
     (profile) => profile.personalInfo.location,
   ),
   new ResumeField("#resume", (profile) => profile.personalInfo.resume),
+  new CustomQuestionsField(),
+  new TextQuestionField(
+    "linkedin profile",
+    (profile) => profile.personalInfo.linkedIn,
+  ),
+  new ComboboxQuestionField(
+    "willing to relocate",
+    (profile) => profile.personalInfo.willingToRelocate,
+  ),
+  new TextQuestionField(
+    "how did you hear",
+    (profile) => profile.personalInfo.howDidYouHear,
+  ),
 ];
 
 const LOG_PREFIX = "[BeamApply/greenhouse]";
@@ -403,193 +566,21 @@ function collectPageQuestions(): IndexedQuestion[] {
   return questions;
 }
 
-/**
- * Fills every stored custom question whose text appears within a rendered
- * question on the form (first match wins — keep stored questions
- * distinctive). Never overwrites: answered questions and already-selected
- * dropdowns are skipped, and a stored answer with no matching option is
- * reported, not guessed.
- */
-async function fillCustomQuestions(
-  entries: readonly CustomQuestion[],
-): Promise<number> {
-  if (entries.length === 0) return 0;
-
-  const pageQuestions = collectPageQuestions();
-  let filledCount = 0;
-
-  for (const entry of entries) {
-    const question = entry.question.trim();
-    const answer = entry.answer.trim();
-    if (question === "" || answer === "") continue;
-
-    const match = pageQuestions.find(({ text }) => text.includes(question));
-    if (!match) {
-      console.info(
-        `${LOG_PREFIX} no question on this form contains "${question}".`,
-      );
-      continue;
-    }
-    const pageQuestion = match.question;
-
-    switch (pageQuestion.kind) {
-      case "text": {
-        if (pageQuestion.control.value.trim() !== "") break; // never overwrite
-        setFieldValue(pageQuestion.control, answer);
-        filledCount += 1;
-        break;
-      }
-
-      case "select": {
-        if (pageQuestion.control.value !== "") break;
-        const option = [...pageQuestion.control.options].find(
-          (candidate) =>
-            candidate.value === answer ||
-            (candidate.textContent ?? "").trim() === answer,
-        );
-        if (option) {
-          setFieldValue(pageQuestion.control, option.value);
-          filledCount += 1;
-        } else {
-          console.warn(
-            `${LOG_PREFIX} question matched but no option "${answer}" exists.`,
-          );
-        }
-        break;
-      }
-
-      case "combobox": {
-        const control = pageQuestion.control;
-        // react-select renders the chosen option inside the control shell —
-        // a present `.select__single-value` means this question is answered.
-        const shell = control.closest(".select__control");
-        if (
-          control.value.trim() !== "" ||
-          shell?.querySelector(".select__single-value")
-        ) {
-          break;
-        }
-        // Exact matches only — a partial answer must never pick an option.
-        if (await fillAutocomplete(control, answer, true)) filledCount += 1;
-        break;
-      }
-    }
-  }
-
-  return filledCount;
-}
-
-/**
- * Fills a dedicated LinkedIn field. On Greenhouse this is a
- * requisition-specific question (no fixed selector), so it's located by
- * case-insensitive contains against the rendered question text — the same
- * technique as custom questions, but surfaced as a first-class optional field
- * because a LinkedIn URL appears on nearly every application. Never overwrites
- * a value the applicant already typed.
- */
-async function fillLinkedInField(
-  profile: JobApplicationProfile,
-): Promise<number> {
-  const linkedIn = (profile.personalInfo.linkedIn ?? "").trim();
-  if (!linkedIn) return 0;
-
-  const match = collectPageQuestions().find(({ text }) =>
-    text.toLowerCase().includes("linkedin profile"),
-  );
-  if (!match) return 0;
-
-  if (
-    match.question.kind === "text" &&
-    match.question.control.value.trim() === ""
-  ) {
-    setFieldValue(match.question.control, linkedIn);
-    return 1;
-  }
-  return 0;
-}
-
-/**
- * Fills a dedicated "willing to relocate" field. On Greenhouse this is a
- * react-select combobox (no fixed selector), located by case-insensitive
- * contains against the rendered question text. The stored answer must be the
- * exact option label the requisition renders (comboboxes only accept values
- * from their dropdown). Never overwrites an already-selected value.
- */
-async function fillWillingToRelocateField(
-  profile: JobApplicationProfile,
-): Promise<number> {
-  const answer = (profile.personalInfo.willingToRelocate ?? "").trim();
-  if (!answer) return 0;
-
-  const match = collectPageQuestions().find(({ text }) =>
-    text.toLowerCase().includes("willing to relocate"),
-  );
-  if (!match || match.question.kind !== "combobox") return 0;
-
-  const control = match.question.control;
-  const shell = control.closest(".select__control");
-  if (
-    control.value.trim() !== "" ||
-    shell?.querySelector(".select__single-value")
-  ) {
-    return 0;
-  }
-
-  // Reuse the proven combobox path: type the answer, react-select filters to
-  // the matching option, and the exact-only matcher clicks it.
-  return (await fillAutocomplete(control, answer, true)) ? 1 : 0;
-}
-
-/**
- * Fills a dedicated "How did you hear about this job?" field. On Greenhouse
- * this is a requisition-specific text question (no fixed selector), located
- * by case-insensitive contains against the rendered question text. The answer
- * is filled verbatim. Never overwrites a value the applicant already typed.
- */
-async function fillHowDidYouHearField(
-  profile: JobApplicationProfile,
-): Promise<number> {
-  const answer = (profile.personalInfo.howDidYouHear ?? "").trim();
-  if (!answer) return 0;
-
-  const match = collectPageQuestions().find(({ text }) =>
-    text.toLowerCase().includes("how did you hear"),
-  );
-  if (!match || match.question.kind !== "text") return 0;
-
-  if (match.question.control.value.trim() !== "") return 0; // never overwrite
-  setFieldValue(match.question.control, answer);
-  return 1;
-}
-
-/** Fills whatever supported fields exist right now; returns how many were written. */
-async function fillNow(profile: JobApplicationProfile): Promise<number> {
-  let filledCount = 0;
-  for (const field of FIELDS) {
-    if (await field.fill(profile)) filledCount += 1;
-  }
-  return filledCount;
-}
-
 export const greenhouseAdapter: PlatformAdapter = {
   id: "greenhouse",
   hosts: ["boards.greenhouse.io", "job-boards.greenhouse.io"],
 
   /** Runs on button click — every init race on the page is over by then. */
   async autofill(profile) {
-    const fixedCount = await fillNow(profile);
-    const customCount = await fillCustomQuestions(
-      profile.customQuestions ?? [], // profiles saved before custom questions
-    );
-    const linkedInCount = await fillLinkedInField(profile);
-    const willingToRelocateCount = await fillWillingToRelocateField(profile);
-    const howDidYouHearCount = await fillHowDidYouHearField(profile);
-    const filledCount =
-      fixedCount +
-      customCount +
-      linkedInCount +
-      willingToRelocateCount +
-      howDidYouHearCount;
+    let filledCount = 0;
+    let customCount = 0;
+
+    for (const field of FIELDS) {
+      const count = await field.fill(profile);
+      filledCount += count;
+      if (field instanceof CustomQuestionsField) customCount = count;
+    }
+
     if (filledCount === 0) {
       console.info(`${LOG_PREFIX} nothing to fill.`);
     } else {
