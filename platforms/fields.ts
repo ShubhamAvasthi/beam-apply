@@ -462,14 +462,16 @@ export class CustomQuestionsField implements Field {
 
 /**
  * A requisition-specific free-text question with no fixed selector,
- * located by case-insensitive substring against the rendered question
- * text. Surfaced as a first-class optional field when a value appears on
- * nearly every application (a LinkedIn URL, for example). Filled
- * verbatim; never overwrites a value the applicant already typed.
+ * located by the first of its needles that appears (case-insensitively)
+ * in the rendered question text — boards phrase the same question in
+ * different ways ("How did you hear about us?", "How did you first hear
+ * about us?"). Surfaced as a first-class optional field when a value
+ * appears on nearly every application (a LinkedIn URL, for example).
+ * Filled verbatim; never overwrites a value the applicant already typed.
  */
 export class TextQuestionField implements Field {
   constructor(
-    private readonly needle: string,
+    private readonly needles: readonly string[],
     private readonly getValue: (
       profile: JobApplicationProfile,
     ) => string | undefined | null,
@@ -479,27 +481,32 @@ export class TextQuestionField implements Field {
     const value = (this.getValue(profile) ?? "").trim();
     if (!value) return 0;
 
-    const match = collectPageQuestions().find(({ text }) =>
-      text.toLowerCase().includes(this.needle),
-    );
-    if (!match || match.question.kind !== "text") return 0;
+    const questions = collectPageQuestions();
+    for (const needle of this.needles) {
+      const match = questions.find(({ text }) =>
+        text.toLowerCase().includes(needle),
+      );
+      if (!match || match.question.kind !== "text") continue;
 
-    if (match.question.control.value.trim() !== "") return 0; // never overwrite
-    setFieldValue(match.question.control, value);
-    return 1;
+      if (match.question.control.value.trim() !== "") return 0; // never overwrite
+      setFieldValue(match.question.control, value);
+      return 1;
+    }
+    return 0;
   }
 }
 
 /**
- * A requisition-specific react-select combobox question, located by
- * case-insensitive substring against the rendered question text. Filled
- * by typing the answer and clicking the exact matching option — a partial
- * answer must never pick an option, since comboboxes only accept values
- * from their dropdown. Never overwrites an already-selected value.
+ * A requisition-specific react-select combobox question, located by the
+ * first of its needles that appears (case-insensitively) in the rendered
+ * question text. Filled by typing the answer and clicking the exact
+ * matching option — a partial answer must never pick an option, since
+ * comboboxes only accept values from their dropdown. Never overwrites an
+ * already-selected value.
  */
 export class ComboboxQuestionField implements Field {
   constructor(
-    private readonly needle: string,
+    private readonly needles: readonly string[],
     private readonly getValue: (
       profile: JobApplicationProfile,
     ) => string | undefined | null,
@@ -509,25 +516,29 @@ export class ComboboxQuestionField implements Field {
     const value = (this.getValue(profile) ?? "").trim();
     if (!value) return 0;
 
-    const match = collectPageQuestions().find(({ text }) =>
-      text.toLowerCase().includes(this.needle),
-    );
-    if (!match || match.question.kind !== "combobox") return 0;
+    const questions = collectPageQuestions();
+    for (const needle of this.needles) {
+      const match = questions.find(({ text }) =>
+        text.toLowerCase().includes(needle),
+      );
+      if (!match || match.question.kind !== "combobox") continue;
 
-    const control = match.question.control;
-    // react-select renders the chosen option inside the control shell —
-    // a present `.select__single-value` means this question is answered.
-    const shell = control.closest(".select__control");
-    if (
-      control.value.trim() !== "" ||
-      shell?.querySelector(".select__single-value")
-    ) {
-      return 0; // never overwrite
+      const control = match.question.control;
+      // react-select renders the chosen option inside the control shell —
+      // a present `.select__single-value` means this question is answered.
+      const shell = control.closest(".select__control");
+      if (
+        control.value.trim() !== "" ||
+        shell?.querySelector(".select__single-value")
+      ) {
+        return 0; // never overwrite
+      }
+
+      // Type the answer, react-select filters to the matching option, and
+      // the exact-only matcher clicks it.
+      const clicked = await fillAutocomplete(control, value, true);
+      return clicked ? 1 : 0;
     }
-
-    // Type the answer, react-select filters to the matching option, and the
-    // exact-only matcher clicks it.
-    const clicked = await fillAutocomplete(control, value, true);
-    return clicked ? 1 : 0;
+    return 0;
   }
 }

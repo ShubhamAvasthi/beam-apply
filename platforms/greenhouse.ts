@@ -38,15 +38,15 @@ const FIELDS: readonly Field[] = [
   new ResumeField("#resume", (profile) => profile.personalInfo.resume),
   new CustomQuestionsField(),
   new TextQuestionField(
-    "linkedin profile",
+    ["linkedin profile"],
     (profile) => profile.personalInfo.linkedIn,
   ),
   new ComboboxQuestionField(
-    "willing to relocate",
+    ["willing to relocate"],
     (profile) => profile.personalInfo.willingToRelocate,
   ),
   new TextQuestionField(
-    "how did you hear",
+    ["how did you hear", "how did you first hear"],
     (profile) => profile.personalInfo.howDidYouHear,
   ),
 ];
