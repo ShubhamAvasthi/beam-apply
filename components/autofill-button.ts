@@ -56,8 +56,11 @@ export function mountAutofillButton(): void {
  * Firefox content scripts may call `runtime.openOptionsPage()`; other
  * browsers only expose it to extension contexts. Fall back to opening the
  * options URL in a new tab — `open_in_tab` is set, so it's the same page.
+ *
+ * Exported so the sidebar's "edit profile" affordance shares this one
+ * implementation rather than duplicating the cross-browser fallback.
  */
-function openOptionsPage(): void {
+export function openOptionsPage(): void {
   const opener = browser.runtime.openOptionsPage;
   if (typeof opener === "function") {
     Promise.resolve(opener()).catch(() => {

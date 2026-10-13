@@ -1,0 +1,276 @@
+/*
+ * BeamApply application sidebar.
+ *
+ * Injected verbatim into the sidebar's shadow root (see sidebar.ts). Kept
+ * as a BARE `.css` file for the same reason as autofill-button.css: this
+ * must style isolated elements on arbitrary host pages and must not leak
+ * in either direction.
+ */
+:host {
+  /* `all: initial` wipes every inherited value from the host page before
+     we restyle, so each declaration below is the only thing that applies. */
+  all: initial;
+  display: flex;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2147483647;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.sidebar {
+  display: flex;
+  height: 100%;
+  font:
+    400 13px/1.45 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color: #1f2933;
+  background: #fff;
+  border-left: 1px solid #e4e7eb;
+  box-shadow: -4px 0 18px rgb(15 23 42 / 14%);
+}
+
+/* ---- collapsed rail ---------------------------------------------------- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 330px;
+  max-width: 100vw;
+  height: 100%;
+}
+
+:host([data-collapsed]) .panel {
+  display: none;
+}
+
+.tab {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 100%;
+  padding: 0;
+  font:
+    600 15px/1 system-ui,
+    sans-serif;
+  color: #fff;
+  background: #646cff;
+  border: none;
+  border-radius: 8px 0 0 8px;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+}
+
+:host([data-collapsed]) .tab {
+  display: flex;
+}
+
+/* ---- header ------------------------------------------------------------ */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  color: #fff;
+  background: #646cff;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.host {
+  flex: 1;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.88;
+}
+
+.icon-button {
+  padding: 2px 7px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #fff;
+  background: rgb(255 255 255 / 20%);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: rgb(255 255 255 / 34%);
+}
+
+/* ---- body -------------------------------------------------------------- */
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 14px 18px;
+}
+
+.section-title {
+  margin: 0 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #7b8794;
+}
+
+.section + .section {
+  margin-top: 20px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3e4c59;
+}
+
+.field-tag {
+  font-size: 10px;
+  font-weight: 500;
+  color: #9aa5b1;
+}
+
+.field[data-missing="true"] .field-label {
+  color: #b91c1c;
+}
+
+.field-input {
+  width: 100%;
+  padding: 7px 9px;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+  border: 1px solid #cbd2d9;
+  border-radius: 7px;
+}
+
+.field-input::placeholder {
+  color: #9aa5b1;
+}
+
+.field-input:focus-visible {
+  border-color: #646cff;
+  outline: 2px solid #646cff;
+  outline-offset: 1px;
+}
+
+.field-input[readonly] {
+  color: #52606d;
+  background: #f5f7fa;
+  cursor: default;
+}
+
+.field[data-missing="true"] .field-input {
+  border-color: #dc2626;
+}
+
+.hint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #9aa5b1;
+}
+
+.empty {
+  margin: 0;
+  font-size: 12px;
+  color: #9aa5b1;
+}
+
+/* ---- footer ------------------------------------------------------------ */
+
+.footer {
+  padding: 12px 14px 14px;
+  background: #f5f7fa;
+  border-top: 1px solid #e4e7eb;
+}
+
+.fill-button {
+  width: 100%;
+  padding: 10px 12px;
+  font:
+    600 13px/1.2 system-ui,
+    sans-serif;
+  color: #fff;
+  background: #646cff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.fill-button:hover:not(:disabled) {
+  background: #535bf2;
+}
+
+.fill-button:disabled {
+  color: #7b8794;
+  background: #d9e2ec;
+  cursor: not-allowed;
+}
+
+.status {
+  display: block;
+  min-height: 15px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.status[data-tone="ok"] {
+  color: #047857;
+}
+
+.status[data-tone="error"] {
+  color: #b91c1c;
+}
+
+.status[data-tone="muted"] {
+  color: #7b8794;
+}
+
+.footer-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.link-button {
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 11px;
+  color: #646cff;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.link-button[hidden] {
+  display: none;
+}
