@@ -9,6 +9,9 @@ import {
   type ResumeFile,
 } from "@/types/profile";
 import { profileStorage } from "@/utils/storage";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("options");
 
 const form = document.querySelector<HTMLFormElement>("#profile-form")!;
 const firstName = document.querySelector<HTMLInputElement>("#first-name")!;
@@ -198,7 +201,7 @@ resumeInput.addEventListener("change", () => {
       selectedResume = await readResumeFile(file);
       renderResume();
     } catch (error) {
-      console.error("BeamApply: failed to read resume", error);
+      log.error("failed to read resume", error);
       flash("Failed to read resume", "#f87171");
     }
   })();
@@ -245,7 +248,7 @@ form.addEventListener("submit", (event) => {
       updateSavedAt(profile);
       flash("Saved ✓", "#4ade80");
     } catch (error) {
-      console.error("BeamApply: failed to save profile", error);
+      log.error("failed to save profile", error);
       flash("Save failed — see console", "#f87171");
     }
   })();

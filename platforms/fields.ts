@@ -14,8 +14,11 @@ import {
   type PersonalInfo,
   type ResumeFile,
 } from "~/types/profile";
+import { createLogger } from "~/utils/logger";
 
-const LOG_PREFIX = "[BeamApply]";
+// Shared field code logs under the generic prefix; adapters that compose
+// these fields add their own namespace on top (see each adapter).
+const log = createLogger();
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -154,9 +157,7 @@ async function fillAutocomplete(
   await wait(1000);
   const clicked = await selectDropdownOption(targetText, exactOnly);
   if (!clicked) {
-    console.warn(
-      `${LOG_PREFIX} no dropdown option found for "${targetText}" after retries.`,
-    );
+    log.warn(`no dropdown option found for "${targetText}" after retries.`);
   }
   return clicked;
 }
@@ -461,9 +462,7 @@ export class ResumeField implements Field {
     if (input?.type !== "file") return 0;
 
     if (input.files && input.files.length > 0) {
-      console.info(
-        `${LOG_PREFIX} resume already attached — leaving it untouched.`,
-      );
+      log.info(`resume already attached — leaving it untouched.`);
       return 0;
     }
 
@@ -479,9 +478,7 @@ export class ResumeField implements Field {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
 
-    console.info(
-      `${LOG_PREFIX} attached resume "${resume.name}" (${resume.size} bytes).`,
-    );
+    log.info(`attached resume "${resume.name}" (${resume.size} bytes).`);
     return 1;
   }
 
@@ -529,9 +526,7 @@ export class CustomQuestionsField implements Field {
 
       const match = pageQuestions.find(({ text }) => text.includes(question));
       if (!match) {
-        console.info(
-          `${LOG_PREFIX} no question on this form contains "${question}".`,
-        );
+        log.info(`no question on this form contains "${question}".`);
         continue;
       }
       const pageQuestion = match.question;
@@ -555,9 +550,7 @@ export class CustomQuestionsField implements Field {
             setFieldValue(pageQuestion.control, option.value);
             filledCount += 1;
           } else {
-            console.warn(
-              `${LOG_PREFIX} question matched but no option "${answer}" exists.`,
-            );
+            log.warn(`question matched but no option "${answer}" exists.`);
           }
           break;
         }

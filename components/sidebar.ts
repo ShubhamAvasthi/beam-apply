@@ -3,11 +3,12 @@ import sidebarStyle from "./sidebar.css?raw";
 import { findAdapter } from "@/platforms";
 import type { FieldDescription } from "@/platforms/fields";
 import { createEmptyProfile, getMissingProfileFields } from "@/types/profile";
+import { createLogger } from "@/utils/logger";
 import { profileStorage } from "@/utils/storage";
 import { openOptionsPage } from "./autofill-button";
 
 const HOST_ID = "beamapply-sidebar-host";
-const LOG_PREFIX = "[BeamApply]";
+const log = createLogger("sidebar");
 
 type StatusTone = "ok" | "error" | "muted";
 
@@ -266,7 +267,7 @@ export function mountSidebar(): void {
         filledCount > 0 ? "ok" : "muted",
       );
     } catch (error) {
-      console.error(`${LOG_PREFIX} sidebar autofill failed`, error);
+      log.error("sidebar autofill failed", error);
       setStatus("Autofill failed — see console.", "error");
     } finally {
       filling = false;

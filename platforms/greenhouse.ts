@@ -7,6 +7,7 @@
  * where each one's value comes from in the profile.
  */
 import type { JobApplicationProfile } from "~/types/profile";
+import { createLogger } from "~/utils/logger";
 import {
   AutocompleteField,
   ComboboxQuestionField,
@@ -19,7 +20,7 @@ import {
 } from "./fields";
 import type { PlatformAdapter } from "./types";
 
-const LOG_PREFIX = "[BeamApply/greenhouse]";
+const log = createLogger("greenhouse");
 
 /**
  * Every autofillable field on Greenhouse, in fill order — the order a
@@ -65,10 +66,10 @@ export const greenhouseAdapter: PlatformAdapter = {
     }
 
     if (filledCount === 0) {
-      console.info(`${LOG_PREFIX} nothing to fill.`);
+      log.info("nothing to fill.");
     } else {
-      console.info(
-        `${LOG_PREFIX} filled ${filledCount} field(s)` +
+      log.info(
+        `filled ${filledCount} field(s)` +
           (customCount > 0
             ? ` (including ${customCount} custom question(s))`
             : "") +

@@ -4,12 +4,15 @@ import { browser } from "wxt/browser";
 
 import { findAdapter } from "@/platforms";
 import { getMissingProfileFields } from "@/types/profile";
+import { createLogger } from "@/utils/logger";
 import { profileStorage } from "@/utils/storage";
 
 const HOST_ID = "beamapply-autofill-host";
 const BUTTON_LABEL = "⚡ Autofill";
 const FILLED_LABEL = "✓ Filled";
 const INCOMPLETE_LABEL = "⚠ Complete profile";
+
+const log = createLogger();
 
 /**
  * Fully isolated inside a shadow root so neither the host page’s CSS nor
@@ -84,8 +87,8 @@ async function fillFromProfile(button: HTMLButtonElement): Promise<void> {
   // clicking it opens the profile editor until the profile is complete.
   const missing = getMissingProfileFields(profile);
   if (missing.length > 0) {
-    console.warn(
-      `[BeamApply] profile is incomplete; missing required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Open the profile editor to fix it.`,
+    log.warn(
+      `profile is incomplete; missing required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Open the profile editor to fix it.`,
     );
     button.textContent = INCOMPLETE_LABEL;
     openOptionsPage();

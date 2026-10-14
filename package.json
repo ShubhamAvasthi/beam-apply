@@ -35,6 +35,7 @@
     "wxt": "^0.21.3"
   },
   "dependencies": {
-    "@picocss/pico": "^2.1.1"
+    "@picocss/pico": "^2.1.1",
+    "loglevel": "^1.9.2"
   }
 }
