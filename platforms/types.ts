@@ -1,4 +1,5 @@
 import type { JobApplicationProfile } from "~/types/profile";
+import type { FieldDescription } from "./fields";
 
 /**
  * One integration per ATS / job-board platform.
@@ -23,4 +24,13 @@ export interface PlatformAdapter {
    * Must never throw into the caller.
    */
   autofill(profile: JobApplicationProfile): number | Promise<number>;
+  /**
+   * Describes exactly the fields {@link autofill} could write on the page
+   * as currently rendered — one entry per field, in fill order. Empty
+   * when this page renders none of the adapter's fields.
+   *
+   * A pure read of the live DOM (no side effects, no writes), so a UI can
+   * show the user precisely what a click would fill before they click it.
+   */
+  describe(profile: JobApplicationProfile): FieldDescription[];
 }

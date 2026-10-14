@@ -11,6 +11,7 @@
 import {
   isResumeFile,
   type JobApplicationProfile,
+  type PersonalInfo,
   type ResumeFile,
 } from "~/types/profile";
 
@@ -273,6 +274,59 @@ async function selectDropdownOption(
 }
 
 /**
+ * The first rendered question of `kind` whose text contains any of
+ * `needles` (tried in order), narrowed so `control` is typed to that kind.
+ *
+ * Boards phrase the same question differently, hence the needle list; the
+ * `kind` guard keeps the returned control's type exact, so callers never
+ * have to re-check it.
+ */
+function findQuestion<K extends PageQuestion["kind"]>(
+  questions: readonly IndexedQuestion[],
+  needles: readonly string[],
+  kind: K,
+):
+  | (IndexedQuestion & { question: Extract<PageQuestion, { kind: K }> })
+  | undefined {
+  for (const needle of needles) {
+    const match = questions.find(({ text }) =>
+      text.toLowerCase().includes(needle),
+    );
+    if (match && match.question.kind === kind) {
+      return match as IndexedQuestion & {
+        question: Extract<PageQuestion, { kind: K }>;
+      };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * What a UI needs to show one field: its stable key (for editing and
+ * diffing), a human label, the value that would be written, and whether
+ * the value is editable as plain text.
+ */
+export interface FieldDescription {
+  /** Stable identity for this field on this platform — used to key edits. */
+  readonly key: string;
+  /** Label shown in the UI, e.g. "First name". */
+  readonly label: string;
+  /** The value `fill()` would write right now ("" when the profile has none). */
+  readonly value: string;
+  /**
+   * False for values a UI must not offer as a text box — the attached
+   * resume is a file, shown read-only.
+   */
+  readonly editable: boolean;
+  /**
+   * Writes an edited value back into the profile a UI is holding. Always
+   * present so callers need no guard; `editable: false` fields make it a
+   * no-op and a UI should not call it.
+   */
+  update(profile: JobApplicationProfile, value: string): void;
+}
+
+/**
  * One fixed-selector field on an application form. Each instance carries
  * its own selector — there is no separate locator table. Implemented by
  * {@link TextField} (written verbatim) and {@link AutocompleteField}
@@ -285,17 +339,29 @@ export interface Field {
    * how many fields were written (custom questions can be several).
    */
   fill(profile: JobApplicationProfile): Promise<number>;
+
+  /**
+   * Describes this field for a preview UI. Returns an empty array when
+   * the field's control is not on the current page — so a sidebar lists
+   * exactly what `fill()` could touch, and never a field this requisition
+   * does not ask for. Purely a read of the live DOM: no side effects.
+   */
+  describe(profile: JobApplicationProfile): FieldDescription[];
 }
+
+/** A `personalInfo` key whose value is plain text (i.e. not the resume). */
+type TextProfileKey = Exclude<keyof PersonalInfo, "resume">;
 
 /** A field whose value is written verbatim into its input or select. */
 export class TextField implements Field {
   constructor(
     private readonly selector: string,
-    private readonly getValue: (profile: JobApplicationProfile) => string,
+    private readonly key: TextProfileKey,
+    private readonly label: string,
   ) {}
 
   async fill(profile: JobApplicationProfile): Promise<number> {
-    const value = this.getValue(profile);
+    const value = profile.personalInfo[this.key];
     if (value === "") return 0; // nothing in the profile for this field
 
     const el = document.querySelector<HTMLInputElement | HTMLSelectElement>(
@@ -305,6 +371,24 @@ export class TextField implements Field {
 
     setFieldValue(el, value);
     return 1;
+  }
+
+  describe(profile: JobApplicationProfile): FieldDescription[] {
+    // Absent selector = this requisition does not ask for this field, so a
+    // preview UI must not list it.
+    if (document.querySelector(this.selector) === null) return [];
+
+    return [
+      {
+        key: this.key,
+        label: this.label,
+        value: profile.personalInfo[this.key],
+        editable: true,
+        update: (target, value) => {
+          target.personalInfo[this.key] = value;
+        },
+      },
+    ];
   }
 }
 
@@ -317,11 +401,12 @@ export class TextField implements Field {
 export class AutocompleteField implements Field {
   constructor(
     private readonly selector: string,
-    private readonly getValue: (profile: JobApplicationProfile) => string,
+    private readonly key: TextProfileKey,
+    private readonly label: string,
   ) {}
 
   async fill(profile: JobApplicationProfile): Promise<number> {
-    const value = this.getValue(profile);
+    const value = profile.personalInfo[this.key];
     if (value === "") return 0; // nothing in the profile for this field
 
     const input = document.querySelector<HTMLInputElement>(this.selector);
@@ -329,6 +414,24 @@ export class AutocompleteField implements Field {
 
     await fillAutocomplete(input, value);
     return 1;
+  }
+
+  describe(profile: JobApplicationProfile): FieldDescription[] {
+    // Same contract as TextField — an absent control means this requisition
+    // does not ask for the field, so a preview UI must not list it.
+    if (document.querySelector(this.selector) === null) return [];
+
+    return [
+      {
+        key: this.key,
+        label: this.label,
+        value: profile.personalInfo[this.key],
+        editable: true,
+        update: (target, value) => {
+          target.personalInfo[this.key] = value;
+        },
+      },
+    ];
   }
 }
 
@@ -380,6 +483,27 @@ export class ResumeField implements Field {
       `${LOG_PREFIX} attached resume "${resume.name}" (${resume.size} bytes).`,
     );
     return 1;
+  }
+
+  describe(profile: JobApplicationProfile): FieldDescription[] {
+    const input = document.querySelector<HTMLInputElement>(this.selector);
+    // No upload field on this form, or a file is already attached — `fill()`
+    // would do nothing, so a preview UI must not offer it.
+    if (input?.type !== "file") return [];
+    if (input.files && input.files.length > 0) return [];
+
+    const resume = this.getValue(profile);
+    return [
+      {
+        key: "resume",
+        label: "Resume",
+        value: isResumeFile(resume) ? resume.name : "",
+        // A file cannot be retyped into a text box — the UI shows it
+        // read-only; the stored resume is what gets attached.
+        editable: false,
+        update: () => {},
+      },
+    ];
   }
 }
 
@@ -458,6 +582,47 @@ export class CustomQuestionsField implements Field {
 
     return filledCount;
   }
+
+  /**
+   * Lists every stored custom question that matches a question rendered on
+   * this form. Questions with no match here are exactly the ones `fill()`
+   * skips, so a preview UI shows the form's real coverage instead of the
+   * user's whole saved list.
+   */
+  describe(profile: JobApplicationProfile): FieldDescription[] {
+    const entries = profile.customQuestions ?? [];
+    if (entries.length === 0) return [];
+
+    const pageQuestions = collectPageQuestions();
+    const descriptions: FieldDescription[] = [];
+
+    for (const entry of entries) {
+      const question = entry.question.trim();
+      if (question === "" || entry.answer.trim() === "") continue;
+
+      const match = pageQuestions.find(({ text }) => text.includes(question));
+      if (!match) continue;
+
+      // Keyed by the stored question text: that is what identifies the
+      // entry within `customQuestions`, and it is stable across renders.
+      const update = (target: JobApplicationProfile, value: string): void => {
+        const found = target.customQuestions.find(
+          (candidate) => candidate.question === entry.question,
+        );
+        if (found) found.answer = value;
+      };
+
+      descriptions.push({
+        key: `custom:${question}`,
+        label: match.text.trim() || question,
+        value: entry.answer,
+        editable: true,
+        update,
+      });
+    }
+
+    return descriptions;
+  }
 }
 
 /**
@@ -472,27 +637,37 @@ export class CustomQuestionsField implements Field {
 export class TextQuestionField implements Field {
   constructor(
     private readonly needles: readonly string[],
-    private readonly getValue: (
-      profile: JobApplicationProfile,
-    ) => string | undefined | null,
+    private readonly key: TextProfileKey,
+    private readonly label: string,
   ) {}
 
   async fill(profile: JobApplicationProfile): Promise<number> {
-    const value = (this.getValue(profile) ?? "").trim();
+    const value = profile.personalInfo[this.key].trim();
     if (!value) return 0;
 
-    const questions = collectPageQuestions();
-    for (const needle of this.needles) {
-      const match = questions.find(({ text }) =>
-        text.toLowerCase().includes(needle),
-      );
-      if (!match || match.question.kind !== "text") continue;
+    const match = findQuestion(collectPageQuestions(), this.needles, "text");
+    if (!match) return 0;
 
-      if (match.question.control.value.trim() !== "") return 0; // never overwrite
-      setFieldValue(match.question.control, value);
-      return 1;
-    }
-    return 0;
+    if (match.question.control.value.trim() !== "") return 0; // never overwrite
+    setFieldValue(match.question.control, value);
+    return 1;
+  }
+
+  describe(profile: JobApplicationProfile): FieldDescription[] {
+    const match = findQuestion(collectPageQuestions(), this.needles, "text");
+    if (!match) return [];
+
+    return [
+      {
+        key: this.key,
+        label: this.label,
+        value: profile.personalInfo[this.key],
+        editable: true,
+        update: (target, value) => {
+          target.personalInfo[this.key] = value;
+        },
+      },
+    ];
   }
 }
 
@@ -507,38 +682,65 @@ export class TextQuestionField implements Field {
 export class ComboboxQuestionField implements Field {
   constructor(
     private readonly needles: readonly string[],
-    private readonly getValue: (
-      profile: JobApplicationProfile,
-    ) => string | undefined | null,
+    private readonly key: TextProfileKey,
+    private readonly label: string,
   ) {}
 
   async fill(profile: JobApplicationProfile): Promise<number> {
-    const value = (this.getValue(profile) ?? "").trim();
+    const value = profile.personalInfo[this.key].trim();
     if (!value) return 0;
 
-    const questions = collectPageQuestions();
-    for (const needle of this.needles) {
-      const match = questions.find(({ text }) =>
-        text.toLowerCase().includes(needle),
-      );
-      if (!match || match.question.kind !== "combobox") continue;
+    const match = findQuestion(
+      collectPageQuestions(),
+      this.needles,
+      "combobox",
+    );
+    if (!match) return 0;
 
-      const control = match.question.control;
-      // react-select renders the chosen option inside the control shell —
-      // a present `.select__single-value` means this question is answered.
-      const shell = control.closest(".select__control");
-      if (
-        control.value.trim() !== "" ||
-        shell?.querySelector(".select__single-value")
-      ) {
-        return 0; // never overwrite
-      }
-
-      // Type the answer, react-select filters to the matching option, and
-      // the exact-only matcher clicks it.
-      const clicked = await fillAutocomplete(control, value, true);
-      return clicked ? 1 : 0;
+    const control = match.question.control;
+    // react-select renders the chosen option inside the control shell —
+    // a present `.select__single-value` means this question is answered.
+    const shell = control.closest(".select__control");
+    if (
+      control.value.trim() !== "" ||
+      shell?.querySelector(".select__single-value")
+    ) {
+      return 0; // never overwrite
     }
-    return 0;
+
+    // Type the answer, react-select filters to the matching option, and
+    // the exact-only matcher clicks it.
+    const clicked = await fillAutocomplete(control, value, true);
+    return clicked ? 1 : 0;
+  }
+
+  describe(profile: JobApplicationProfile): FieldDescription[] {
+    const match = findQuestion(
+      collectPageQuestions(),
+      this.needles,
+      "combobox",
+    );
+    if (!match) return [];
+
+    const control = match.question.control;
+    const shell = control.closest(".select__control");
+    if (
+      control.value.trim() !== "" ||
+      shell?.querySelector(".select__single-value")
+    ) {
+      return []; // already answered — fill() would skip it
+    }
+
+    return [
+      {
+        key: this.key,
+        label: this.label,
+        value: profile.personalInfo[this.key],
+        editable: true,
+        update: (target, value) => {
+          target.personalInfo[this.key] = value;
+        },
+      },
+    ];
   }
 }
