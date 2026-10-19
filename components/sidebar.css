@@ -5,10 +5,27 @@
  * as a BARE `.css` file for the same reason as autofill-button.css: this
  * must style isolated elements on arbitrary host pages and must not leak
  * in either direction.
+ *
+ * Design tokens: colours, fonts, radii and form styling reference the
+ * `--pico-*` names so the sidebar matches the Pico-styled options/popup
+ * pages. Pico itself is NOT imported here (it is only loaded on the
+ * options/popup documents, and shipping the full 81 KB stylesheet into a
+ * content script that runs on every job board would be wasteful) — so the
+ * handful of tokens the sidebar uses are declared below on `:host`, using
+ * Pico's default (light-theme) values. Keep them in sync with
+ * node_modules/@picocss/pico/css/pico.min.css if Pico is ever upgraded.
+ *
+ * Declaring them on `:host` is safe: the spec guarantees `all: initial`
+ * (above) does NOT reset custom properties, and Greenhouse pages never
+ * define `--pico-*`, so declaring them here is the only way they exist.
+ * Semantic status tones (ok/error) and the docked-panel edge shadow are
+ * sidebar-specific, not Pico tokens, and stay hardcoded.
  */
 :host {
   /* `all: initial` wipes every inherited value from the host page before
-     we restyle, so each declaration below is the only thing that applies. */
+     we restyle, so each declaration below is the only thing that applies.
+     Custom properties are exempt from `all`, so the `--pico-*` tokens
+     declared in the next rule survive this reset. */
   all: initial;
   display: flex;
   position: fixed;
@@ -16,6 +33,26 @@
   right: 0;
   bottom: 0;
   z-index: 2147483647;
+}
+
+/* ---- Pico design tokens (mirrors of Pico's default values) ---------- */
+
+:host {
+  --pico-primary: #0172ad;
+  --pico-primary-hover: #015887;
+  --pico-color: #373c44;
+  --pico-color-secondary: #5d6b89;
+  --pico-background-color: #fff;
+  --pico-font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+    "Helvetica Neue", Arial, sans-serif;
+  --pico-border-radius: 0.25rem;
+  /* Pico resolves its focus colour to the primary; inline the value so it
+     is readable without Pico's chained --pico-primary-border token. */
+  --pico-form-element-focus-color: #0172ad;
+  --pico-form-element-background-color: rgb(251, 251.5, 252.25);
+  --pico-form-element-color: #23262c;
+  --pico-form-element-border-color: #cfd5e2;
 }
 
 *,
@@ -27,14 +64,11 @@
 .sidebar {
   display: flex;
   height: 100%;
-  font:
-    400 13px/1.45 system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
-  color: #1f2933;
-  background: #fff;
-  border-left: 1px solid #e4e7eb;
+  font: 400 13px/1.45 var(--pico-font-family);
+  color: var(--pico-color);
+  background: var(--pico-background-color);
+  border-left: 1px solid var(--pico-form-element-border-color);
+  /* Sidebar-specific: a directional edge shadow, not Pico's card shadow. */
   box-shadow: -4px 0 18px rgb(15 23 42 / 14%);
 }
 
@@ -59,11 +93,9 @@
   width: 34px;
   height: 100%;
   padding: 0;
-  font:
-    600 15px/1 system-ui,
-    sans-serif;
+  font: 600 15px/1 var(--pico-font-family);
   color: #fff;
-  background: #646cff;
+  background: var(--pico-primary);
   border: none;
   border-radius: 8px 0 0 8px;
   cursor: pointer;
@@ -82,7 +114,7 @@
   gap: 8px;
   padding: 11px 12px;
   color: #fff;
-  background: #646cff;
+  background: var(--pico-primary);
 }
 
 .title {
@@ -107,7 +139,7 @@
   color: #fff;
   background: rgb(255 255 255 / 20%);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--pico-border-radius);
   cursor: pointer;
 }
 
@@ -129,7 +161,7 @@
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #7b8794;
+  color: var(--pico-color-secondary);
 }
 
 .section + .section {
@@ -148,13 +180,14 @@
   margin-bottom: 3px;
   font-size: 12px;
   font-weight: 600;
-  color: #3e4c59;
+  color: var(--pico-color);
 }
 
 .field-tag {
   font-size: 10px;
   font-weight: 500;
-  color: #9aa5b1;
+  color: var(--pico-color-secondary);
+  opacity: 0.8;
 }
 
 .field[data-missing="true"] .field-label {
@@ -165,25 +198,26 @@
   width: 100%;
   padding: 7px 9px;
   font: inherit;
-  color: inherit;
-  background: #fff;
-  border: 1px solid #cbd2d9;
-  border-radius: 7px;
+  color: var(--pico-form-element-color);
+  background: var(--pico-form-element-background-color);
+  border: 1px solid var(--pico-form-element-border-color);
+  border-radius: var(--pico-border-radius);
 }
 
 .field-input::placeholder {
-  color: #9aa5b1;
+  color: var(--pico-color-secondary);
+  opacity: 0.7;
 }
 
 .field-input:focus-visible {
-  border-color: #646cff;
-  outline: 2px solid #646cff;
+  border-color: var(--pico-form-element-focus-color);
+  outline: 2px solid var(--pico-form-element-focus-color);
   outline-offset: 1px;
 }
 
 .field-input[readonly] {
-  color: #52606d;
-  background: #f5f7fa;
+  color: var(--pico-color-secondary);
+  background: var(--pico-form-element-background-color);
   cursor: default;
 }
 
@@ -194,43 +228,42 @@
 .hint {
   margin: 2px 0 0;
   font-size: 11px;
-  color: #9aa5b1;
+  color: var(--pico-color-secondary);
+  opacity: 0.85;
 }
 
 .empty {
   margin: 0;
   font-size: 12px;
-  color: #9aa5b1;
+  color: var(--pico-color-secondary);
 }
 
 /* ---- footer ------------------------------------------------------------ */
 
 .footer {
   padding: 12px 14px 14px;
-  background: #f5f7fa;
-  border-top: 1px solid #e4e7eb;
+  background: var(--pico-form-element-background-color);
+  border-top: 1px solid var(--pico-form-element-border-color);
 }
 
 .fill-button {
   width: 100%;
   padding: 10px 12px;
-  font:
-    600 13px/1.2 system-ui,
-    sans-serif;
+  font: 600 13px/1.2 var(--pico-font-family);
   color: #fff;
-  background: #646cff;
+  background: var(--pico-primary);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--pico-border-radius);
   cursor: pointer;
 }
 
 .fill-button:hover:not(:disabled) {
-  background: #535bf2;
+  background: var(--pico-primary-hover);
 }
 
 .fill-button:disabled {
-  color: #7b8794;
-  background: #d9e2ec;
+  color: var(--pico-color-secondary);
+  background: var(--pico-form-element-border-color);
   cursor: not-allowed;
 }
 
@@ -251,7 +284,7 @@
 }
 
 .status[data-tone="muted"] {
-  color: #7b8794;
+  color: var(--pico-color-secondary);
 }
 
 .footer-row {
@@ -264,7 +297,7 @@
   padding: 2px 4px;
   font: inherit;
   font-size: 11px;
-  color: #646cff;
+  color: var(--pico-primary);
   text-decoration: underline;
   background: none;
   border: none;
