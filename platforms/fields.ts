@@ -15,6 +15,7 @@ import {
   type ResumeFile,
 } from "~/types/profile";
 import { createLogger } from "~/utils/logger";
+import { collectPageFields, findQuestion } from "~/utils/page-fields";
 
 // Shared field code logs under the generic prefix; adapters that compose
 // these fields add their own namespace on top (see each adapter).
@@ -47,58 +48,6 @@ function setFieldValue(
   descriptor?.set?.call(element, value);
   element.dispatchEvent(new Event("input", { bubbles: true }));
   element.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-/**
- * One question rendered on the current form:
- * - `text` — free-text input / textarea; the answer is filled verbatim.
- * - `combobox` — react-select control (modern boards), driven like the
- *   typeahead fields but restricted to exact option matches.
- * - `select` — native dropdown (classic boards).
- */
-type PageQuestion =
-  | { kind: "text"; control: HTMLInputElement | HTMLTextAreaElement }
-  | { kind: "combobox"; control: HTMLInputElement }
-  | { kind: "select"; control: HTMLSelectElement };
-
-/** A rendered page question paired with the raw text it was found by. */
-type IndexedQuestion = { text: string; question: PageQuestion };
-
-const TEXT_INPUT_TYPES = new Set(["text", "email", "tel", "url", "number"]);
-
-/**
- * Indexes the page's questions together with the question text each was
- * found by, via `label[for]` (falling back to the control's own
- * `aria-label`, which carries the same question text on live forms). The
- * text is kept exactly as rendered — matching is a plain substring test
- * against it. Radio and checkbox questions are deliberately not indexed —
- * see {@link PageQuestion}.
- */
-function collectPageQuestions(): IndexedQuestion[] {
-  const questions: IndexedQuestion[] = [];
-
-  for (const label of document.querySelectorAll<HTMLLabelElement>(
-    "label[for]",
-  )) {
-    const control = document.getElementById(label.htmlFor);
-    if (!control) continue;
-
-    const text = label.textContent || control.getAttribute("aria-label") || "";
-
-    if (control instanceof HTMLInputElement) {
-      if (control.getAttribute("role") === "combobox") {
-        questions.push({ text, question: { kind: "combobox", control } });
-      } else if (TEXT_INPUT_TYPES.has(control.type)) {
-        questions.push({ text, question: { kind: "text", control } });
-      }
-    } else if (control instanceof HTMLSelectElement) {
-      questions.push({ text, question: { kind: "select", control } });
-    } else if (control instanceof HTMLTextAreaElement) {
-      questions.push({ text, question: { kind: "text", control } });
-    }
-  }
-
-  return questions;
 }
 
 /**
@@ -272,34 +221,6 @@ async function selectDropdownOption(
     await wait(400);
   }
   return false;
-}
-
-/**
- * The first rendered question of `kind` whose text contains any of
- * `needles` (tried in order), narrowed so `control` is typed to that kind.
- *
- * Boards phrase the same question differently, hence the needle list; the
- * `kind` guard keeps the returned control's type exact, so callers never
- * have to re-check it.
- */
-function findQuestion<K extends PageQuestion["kind"]>(
-  questions: readonly IndexedQuestion[],
-  needles: readonly string[],
-  kind: K,
-):
-  | (IndexedQuestion & { question: Extract<PageQuestion, { kind: K }> })
-  | undefined {
-  for (const needle of needles) {
-    const match = questions.find(({ text }) =>
-      text.toLowerCase().includes(needle),
-    );
-    if (match && match.question.kind === kind) {
-      return match as IndexedQuestion & {
-        question: Extract<PageQuestion, { kind: K }>;
-      };
-    }
-  }
-  return undefined;
 }
 
 /**
@@ -516,7 +437,7 @@ export class CustomQuestionsField implements Field {
     const entries = profile.customQuestions ?? []; // profiles saved before custom questions
     if (entries.length === 0) return 0;
 
-    const pageQuestions = collectPageQuestions();
+    const pageQuestions = collectPageFields();
     let filledCount = 0;
 
     for (const entry of entries) {
@@ -529,25 +450,25 @@ export class CustomQuestionsField implements Field {
         log.info(`no question on this form contains "${question}".`);
         continue;
       }
-      const pageQuestion = match.question;
 
-      switch (pageQuestion.kind) {
+      switch (match.kind) {
         case "text": {
-          if (pageQuestion.control.value.trim() !== "") break; // never overwrite
-          setFieldValue(pageQuestion.control, answer);
+          if (match.control.value.trim() !== "") break; // never overwrite
+          setFieldValue(match.control, answer);
           filledCount += 1;
           break;
         }
 
         case "select": {
-          if (pageQuestion.control.value !== "") break;
-          const option = [...pageQuestion.control.options].find(
+          const select = match.control as HTMLSelectElement;
+          if (select.value !== "") break;
+          const option = [...select.options].find(
             (candidate) =>
               candidate.value === answer ||
               (candidate.textContent ?? "").trim() === answer,
           );
           if (option) {
-            setFieldValue(pageQuestion.control, option.value);
+            setFieldValue(select, option.value);
             filledCount += 1;
           } else {
             log.warn(`question matched but no option "${answer}" exists.`);
@@ -556,7 +477,7 @@ export class CustomQuestionsField implements Field {
         }
 
         case "combobox": {
-          const control = pageQuestion.control;
+          const control = match.control as HTMLInputElement;
           // react-select renders the chosen option inside the control shell —
           // a present `.select__single-value` means this question is answered.
           const shell = control.closest(".select__control");
@@ -586,7 +507,7 @@ export class CustomQuestionsField implements Field {
     const entries = profile.customQuestions ?? [];
     if (entries.length === 0) return [];
 
-    const pageQuestions = collectPageQuestions();
+    const pageQuestions = collectPageFields();
     const descriptions: FieldDescription[] = [];
 
     for (const entry of entries) {
@@ -638,16 +559,16 @@ export class TextQuestionField implements Field {
     const value = profile.personalInfo[this.key].trim();
     if (!value) return 0;
 
-    const match = findQuestion(collectPageQuestions(), this.needles, "text");
+    const match = findQuestion(collectPageFields(), this.needles, "text");
     if (!match) return 0;
 
-    if (match.question.control.value.trim() !== "") return 0; // never overwrite
-    setFieldValue(match.question.control, value);
+    if (match.control.value.trim() !== "") return 0; // never overwrite
+    setFieldValue(match.control, value);
     return 1;
   }
 
   describe(profile: JobApplicationProfile): FieldDescription[] {
-    const match = findQuestion(collectPageQuestions(), this.needles, "text");
+    const match = findQuestion(collectPageFields(), this.needles, "text");
     if (!match) return [];
 
     return [
@@ -683,14 +604,10 @@ export class ComboboxQuestionField implements Field {
     const value = profile.personalInfo[this.key].trim();
     if (!value) return 0;
 
-    const match = findQuestion(
-      collectPageQuestions(),
-      this.needles,
-      "combobox",
-    );
+    const match = findQuestion(collectPageFields(), this.needles, "combobox");
     if (!match) return 0;
 
-    const control = match.question.control;
+    const control = match.control as HTMLInputElement;
     // react-select renders the chosen option inside the control shell —
     // a present `.select__single-value` means this question is answered.
     const shell = control.closest(".select__control");
@@ -708,14 +625,10 @@ export class ComboboxQuestionField implements Field {
   }
 
   describe(profile: JobApplicationProfile): FieldDescription[] {
-    const match = findQuestion(
-      collectPageQuestions(),
-      this.needles,
-      "combobox",
-    );
+    const match = findQuestion(collectPageFields(), this.needles, "combobox");
     if (!match) return [];
 
-    const control = match.question.control;
+    const control = match.control as HTMLInputElement;
     const shell = control.closest(".select__control");
     if (
       control.value.trim() !== "" ||
