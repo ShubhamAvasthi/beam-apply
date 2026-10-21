@@ -21,13 +21,13 @@ type StatusTone = "ok" | "error" | "muted";
 /**
  * Mounts the BeamApply application sidebar.
  *
- * The panel shows exactly the fields autofill could write on the page as
- * currently rendered — it asks the adapter via `adapter.describe()` and
- * renders only what comes back, so a requisition that omits a question
- * simply never shows it. Each shown value is editable for this one
- * application; edits stay in an in-memory working copy and "Reset edits"
- * restores the stored profile. The panel carries the button that fills the
- * form from those (possibly edited) values.
+ * The panel lists every question detected on the page, whether or not the
+ * adapter knows about it. Fields matching a stored profile key (email, name,
+ * phone, etc.) are prefilled from the profile and editable; everything else
+ * is shown with its current DOM value and also editable — edits write
+ * straight back to the page control. Edits stay in an in-memory working copy
+ * and "Reset edits" restores the stored profile. The panel carries the
+ * button that fills the form from those (possibly edited) values.
  *
  * Only the top frame gets a sidebar — a full-height panel inside an iframe
  * is noise, so sub-frames keep the floating pill (see mountAutofillButton).
@@ -262,29 +262,43 @@ export function mountSidebar(): void {
       : [];
     const coveredKeys = new Set(adapterDescriptors.map((d) => d.key));
 
-    // 2. Collect every question on the page, then add the ones the adapter
-    //    didn't already claim — matched by text→profile-key rules.
+    // 2. Collect every question on the page and list ALL of them — not just
+    //    the ones matching a profile rule. Fields with a matching rule are
+    //    prefilled from the stored profile; everything else shows its current
+    //    DOM value. All are editable — edits to non-rule fields write straight
+    //    back to the page control via PageField.control.
     const pageFields = collectPageFields();
     const pageFieldDescriptors: FieldDescription[] = [];
 
-    for (const pf of pageFields) {
+    for (let i = 0; i < pageFields.length; i++) {
+      const pf = pageFields[i];
+      if (!pf) continue;
       const key = matchProfileKey(pf);
-      if (!key || coveredKeys.has(key)) continue; // no rule, or adapter owns it
 
-      const value = (profile.personalInfo[key as TextProfileKey] ??
-        "") as string;
+      // Skip if the adapter already owns this profile key (e.g. autocomplete).
+      if (key && coveredKeys.has(key)) continue;
+
+      const value = key
+        ? ((profile.personalInfo[key as TextProfileKey] ?? "") as string)
+        : pf.value;
 
       pageFieldDescriptors.push({
-        key,
+        key: key ?? `__pagefield_${i}`,
         label: pf.text,
         value,
         editable: true,
         pageField: pf,
-        update: (target, value) => {
-          target.personalInfo[key as TextProfileKey] = value;
-        },
+        update: key
+          ? (target, value) => {
+              target.personalInfo[key as TextProfileKey] = value;
+            }
+          : (target, value) => {
+              // No profile key — write the edit straight to the DOM control.
+              setFieldValue(pf.control, value);
+            },
       });
-      pageFieldByKey.set(key, pf);
+
+      if (key) pageFieldByKey.set(key, pf);
     }
 
     descriptors = [...adapterDescriptors, ...pageFieldDescriptors];
