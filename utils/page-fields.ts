@@ -39,6 +39,45 @@ export interface PageField {
   readonly required: boolean;
 }
 
+/**
+ * Substring rules mapping a PageField's rendered question text to a
+ * `personalInfo` profile key. A field matches when its `text` (lowercased)
+ * contains the needle. The first matching rule wins.
+ *
+ * These are intentionally broad — "email" matches "Work email" and
+ * "Email address" alike — so one rule covers every board's phrasing.
+ */
+export const PROFILE_KEY_RULES: readonly {
+  readonly needle: string;
+  readonly key: string;
+}[] = [
+  { needle: "first name", key: "firstName" },
+  { needle: "firstname", key: "firstName" },
+  { needle: "last name", key: "lastName" },
+  { needle: "lastname", key: "lastName" },
+  { needle: "email", key: "email" },
+  { needle: "phone", key: "phone" },
+  { needle: "country", key: "country" },
+  { needle: "location", key: "location" },
+  { needle: "linkedin", key: "linkedIn" },
+  { needle: "relocate", key: "willingToRelocate" },
+  { needle: "how did you hear", key: "howDidYouHear" },
+];
+
+/**
+ * Returns the `personalInfo` key a `PageField` matches, or `undefined` when
+ * no rule applies. Callers can use the returned key to read the profile
+ * value and prefill the field without touching the DOM again — the
+ * `PageField.control` reference is all that's needed to write it back.
+ */
+export function matchProfileKey(field: PageField): string | undefined {
+  const text = field.text.toLowerCase();
+  for (const { needle, key } of PROFILE_KEY_RULES) {
+    if (text.includes(needle)) return key;
+  }
+  return undefined;
+}
+
 const TEXT_INPUT_TYPES = new Set(["text", "email", "tel", "url", "number"]);
 
 /**

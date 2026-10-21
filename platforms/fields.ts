@@ -15,7 +15,11 @@ import {
   type ResumeFile,
 } from "~/types/profile";
 import { createLogger } from "~/utils/logger";
-import { collectPageFields, findQuestion } from "~/utils/page-fields";
+import {
+  collectPageFields,
+  findQuestion,
+  type PageField,
+} from "~/utils/page-fields";
 
 // Shared field code logs under the generic prefix; adapters that compose
 // these fields add their own namespace on top (see each adapter).
@@ -34,7 +38,13 @@ function wait(ms: number): Promise<void> {
  * prototype descriptor plus bubbling `input`/`change` reads as a
  * genuine user edit. Supports inputs, textareas, and select dropdowns.
  */
-function setFieldValue(
+/**
+ * Writes `value` into a form control in a way frameworks treat as a
+ * genuine user edit (prototype descriptor setter + bubbling `input`/`change`
+ * events). Exported so callers that already hold a `PageField.control`
+ * reference can write to it without re-querying the DOM.
+ */
+export function setFieldValue(
   element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
   value: string,
 ): void {
@@ -241,6 +251,13 @@ export interface FieldDescription {
    */
   readonly editable: boolean;
   /**
+   * The underlying `PageField` when this descriptor was produced from a
+   * collected page field rather than an adapter-defined locator. The fill
+   * step can write directly to `pageField.control` without re-querying the
+   * DOM.
+   */
+  readonly pageField?: PageField;
+  /**
    * Writes an edited value back into the profile a UI is holding. Always
    * present so callers need no guard; `editable: false` fields make it a
    * no-op and a UI should not call it.
@@ -272,7 +289,7 @@ export interface Field {
 }
 
 /** A `personalInfo` key whose value is plain text (i.e. not the resume). */
-type TextProfileKey = Exclude<keyof PersonalInfo, "resume">;
+export type TextProfileKey = Exclude<keyof PersonalInfo, "resume">;
 
 /** A field whose value is written verbatim into its input or select. */
 export class TextField implements Field {

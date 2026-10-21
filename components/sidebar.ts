@@ -2,8 +2,14 @@ import sidebarStyle from "./sidebar.css?raw";
 
 import { findAdapter } from "@/platforms";
 import type { FieldDescription } from "@/platforms/fields";
+import { setFieldValue, type TextProfileKey } from "@/platforms/fields";
 import { createEmptyProfile, getMissingProfileFields } from "@/types/profile";
 import { createLogger } from "@/utils/logger";
+import {
+  collectPageFields,
+  matchProfileKey,
+  type PageField,
+} from "@/utils/page-fields";
 import { profileStorage } from "@/utils/storage";
 import { openOptionsPage } from "./autofill-button";
 
@@ -49,6 +55,9 @@ export function mountSidebar(): void {
   let filling = false;
   /** Descriptors for the fields currently rendered on the page. */
   let descriptors: readonly FieldDescription[] = [];
+  /** PageField references keyed by descriptor key, so fill() can write
+   *  directly to `control` without re-querying the DOM. */
+  const pageFieldByKey = new Map<string, PageField>();
 
   // ---- header -----------------------------------------------------------
   const title = document.createElement("span");
@@ -246,25 +255,73 @@ export function mountSidebar(): void {
 
   /** Re-describes the page and re-renders — used on mount, reset, and fill. */
   function refresh(): void {
-    descriptors = adapter ? adapter.describe(profile) : [];
+    // 1. Ask the adapter which fields it knows about (locator-based fields
+    //    such as autocomplete dropdowns that need special write logic).
+    const adapterDescriptors: FieldDescription[] = adapter
+      ? adapter.describe(profile)
+      : [];
+    const coveredKeys = new Set(adapterDescriptors.map((d) => d.key));
+
+    // 2. Collect every question on the page, then add the ones the adapter
+    //    didn't already claim — matched by text→profile-key rules.
+    const pageFields = collectPageFields();
+    const pageFieldDescriptors: FieldDescription[] = [];
+
+    for (const pf of pageFields) {
+      const key = matchProfileKey(pf);
+      if (!key || coveredKeys.has(key)) continue; // no rule, or adapter owns it
+
+      const value = (profile.personalInfo[key as TextProfileKey] ??
+        "") as string;
+
+      pageFieldDescriptors.push({
+        key,
+        label: pf.text,
+        value,
+        editable: true,
+        pageField: pf,
+        update: (target, value) => {
+          target.personalInfo[key as TextProfileKey] = value;
+        },
+      });
+      pageFieldByKey.set(key, pf);
+    }
+
+    descriptors = [...adapterDescriptors, ...pageFieldDescriptors];
     renderFields();
     updateStatus();
   }
 
   async function fill(): Promise<void> {
-    if (!adapter || filling) return;
+    if (filling) return;
 
     filling = true;
     updateStatus();
     setStatus("Filling…", "muted");
 
     try {
-      const filledCount = await adapter.autofill(profile);
+      // 1. Adapter fills its locator-based fields (autocomplete, etc.).
+      let filledCount = 0;
+      if (adapter) {
+        filledCount = await adapter.autofill(profile);
+      }
+
+      // 2. Write matched PageField values directly via PageField.control —
+      //    no re-querying the DOM. Never overwrite a value already typed.
+      let pageFieldFilled = 0;
+      for (const [key, pf] of pageFieldByKey) {
+        const value = profile.personalInfo[key as TextProfileKey]?.trim();
+        if (!value) continue;
+        if (pf.control.value.trim() !== "") continue; // never overwrite
+
+        setFieldValue(pf.control, value);
+        pageFieldFilled++;
+      }
+
+      const total = filledCount + pageFieldFilled;
       setStatus(
-        filledCount > 0
-          ? `Filled ${filledCount} field(s).`
-          : "Nothing to fill.",
-        filledCount > 0 ? "ok" : "muted",
+        total > 0 ? `Filled ${total} field(s).` : "Nothing to fill.",
+        total > 0 ? "ok" : "muted",
       );
     } catch (error) {
       log.error("sidebar autofill failed", error);
