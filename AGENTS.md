@@ -27,3 +27,17 @@ Notes:
   matches the commit: `git tag -a vX.Y.Z -m "Bump version to X.Y.Z" && git push origin main vX.Y.Z`.
 - The tag must match the `package.json` version exactly, or the Release
   workflow's version-verification job fails.
+
+## Preferred mechanism order for read-write operations
+
+When reading or writing files, use mechanisms in this order of preference:
+
+1. AI tool's mechanism — read_files, editor, search_codebase, etc.
+   These are preferred because they operate directly on file content without
+   spawning shells or opening views the human must scroll through.
+2. Non-interactive shell commands — run_commands with flags that avoid
+   prompts/pagers (e.g. git --no-pager, --non-interactive). Use only when
+   the AI tool's mechanism cannot accomplish the task.
+3. Interactive commands — only as the last resort. For example, git diff
+   opens a small view that forces the human to scroll — absolutely undesired.
+   Never use interactive commands when a non-interactive alternative exists.
