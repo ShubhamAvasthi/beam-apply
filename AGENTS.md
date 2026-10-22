@@ -41,3 +41,7 @@ When reading or writing files, use mechanisms in this order of preference:
 3. Interactive commands — only as the last resort. For example, git diff
    opens a small view that forces the human to scroll — absolutely undesired.
    Never use interactive commands when a non-interactive alternative exists.
+
+## Build before summarizing
+
+Always run `bun run build` before summarizing changes so the user can easily test the changes.
