@@ -45,3 +45,7 @@ When reading or writing files, use mechanisms in this order of preference:
 ## Build before summarizing
 
 Always run `bun run build` before summarizing changes so the user can easily test the changes.
+
+## Never commit or push without being asked
+
+Never commit or push changes without being explicitly asked by the user. Make edits locally, but wait for explicit permission before committing or pushing.
