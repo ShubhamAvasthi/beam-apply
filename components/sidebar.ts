@@ -58,6 +58,11 @@ export function mountSidebar(): void {
   /** PageField references keyed by descriptor key, so fill() can write
    *  directly to `control` without re-querying the DOM. */
   const pageFieldByKey = new Map<string, PageField>();
+  /** Whether fields have been fetched from the page yet. Fields are only
+   *  fetched after the user clicks Autofill, so react-select dropdowns are
+   *  open and their `.select__option` nodes are in the DOM when we scrape
+   *  them for the sidebar select boxes. */
+  let fieldsFetched = false;
 
   // ---- header -----------------------------------------------------------
   const title = document.createElement("span");
@@ -302,12 +307,22 @@ export function mountSidebar(): void {
     }
 
     descriptors = [...adapterDescriptors, ...pageFieldDescriptors];
-    renderFields();
+    if (fieldsFetched) {
+      renderFields();
+    }
     updateStatus();
   }
 
   async function fill(): Promise<void> {
     if (filling) return;
+
+    // Fetch fields on first Autofill click so react-select dropdowns are
+    // open and their `.select__option` nodes are in the DOM when the
+    // sidebar scrapes them for select-box options.
+    if (!fieldsFetched) {
+      fieldsFetched = true;
+      refresh();
+    }
 
     filling = true;
     updateStatus();
@@ -346,11 +361,17 @@ export function mountSidebar(): void {
     }
   }
 
-  async function reset(): Promise<void> {
+  async function loadProfile(): Promise<void> {
     profile = await profileStorage.getValue();
     dirty = false;
     resetButton.hidden = true;
-    refresh();
+  }
+
+  async function reset(): Promise<void> {
+    await loadProfile();
+    // Only re-render fields if they've already been fetched (i.e. the user
+    // has clicked Autofill at least once). Until then the sidebar stays empty.
+    if (fieldsFetched) refresh();
   }
 
   // A save from the options page must never discard in-progress edits.
