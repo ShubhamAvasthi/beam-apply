@@ -14,13 +14,7 @@ import {
   type PersonalInfo,
   type ResumeFile,
 } from "~/types/profile";
-import { createLogger } from "~/utils/logger";
-import {
-  collectPageFields,
-  findQuestion,
-  type PageField,
-} from "~/utils/page-fields";
-
+import { findQuestion, type PageField } from "~/utils/page-fields";
 // Shared field code logs under the generic prefix; adapters that compose
 // these fields add their own namespace on top (see each adapter).
 const log = createLogger();
@@ -113,7 +107,7 @@ async function fillAutocomplete(
   );
 
   // Let the typeahead debounce + API fetch render the suggestions.
-  await wait(1000);
+  await wait(1500);
   const clicked = await selectDropdownOption(targetText, exactOnly);
   if (!clicked) {
     log.warn(`no dropdown option found for "${targetText}" after retries.`);
@@ -134,7 +128,7 @@ function locateDropdownOption(
   // data-country-code="in"><span class="iti__country-name">India</span> …
   // <span class="iti__dial-code">+91</span></li>`).
   const selector =
-    '.iti__country, ul.ui-autocomplete li, .select2-results__option, .auto-complete-results li, [role="option"], .pac-item, li[id*="result"], div[class*="suggestion"], div[class*="option"], li[class*="suggestion"], .tt-suggestion, .option';
+    '.iti__country, ul.ui-autocomplete li, .select2-results__option, .auto-complete-results li, [role="option"], .pac-item, li[id*="result"], div[class*="suggestion"], div[class*="option"], li[class*="suggestion"], .tt-suggestion, .option, .select__option';
   const potentialOptions = document.querySelectorAll<HTMLElement>(selector);
 
   let fallbackOpt: HTMLElement | null = null;
@@ -234,6 +228,93 @@ async function selectDropdownOption(
 }
 
 /**
+ * Simulates a genuine mouse click on a react-select `.select__option` item.
+ * Dispatches the full gesture at the option's real coordinates so the
+ * React Select widget registers the selection.
+ */
+export function clickComboboxOption(option: HTMLElement): void {
+  const rect = option.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+
+  const fireMouse = (el: Element, type: string): void => {
+    el.dispatchEvent(
+      new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: x,
+        clientY: y,
+      }),
+    );
+  };
+
+  const topmostEl = document.elementFromPoint(x, y) || option;
+  fireMouse(topmostEl, "mousedown");
+  fireMouse(topmostEl, "mouseup");
+  fireMouse(topmostEl, "click");
+}
+
+/**
+ * Finds a visible dropdown option matching `targetText`. Combines the
+ * broad autocomplete selectors with react-select's `.select__option`
+ * markup. Polls for up to ~1.6s to give asynchronously loaded options
+ * time to render.
+ *
+ * Returns the best matching option element, or null when none matches.
+ * With `exactOnly`, no prefix or fallback option is returned.
+ */
+export async function locateCombinedOption(
+  targetText: string,
+  exactOnly = false,
+): Promise<HTMLElement | null> {
+  const needle = targetText.trim().toLowerCase();
+  const selectors =
+    '.select__option, .iti__country, ul.ui-autocomplete li, .select2-results__option, .auto-complete-results li, [role="option"], .pac-item, li[id*="result"], div[class*="suggestion"], div[class*="option"], li[class*="suggestion"], .tt-suggestion, .option';
+
+  for (let attempts = 0; attempts < 5; attempts += 1) {
+    const potentialOptions = document.querySelectorAll<HTMLElement>(selectors);
+
+    let fallbackOpt: HTMLElement | null = null;
+    let prefixOpt: HTMLElement | null = null;
+    let exactOpt: HTMLElement | null = null;
+
+    for (const opt of potentialOptions) {
+      const computed = window.getComputedStyle(opt);
+      const rect = opt.getBoundingClientRect();
+      const isVisible =
+        computed.display !== "none" &&
+        computed.visibility !== "hidden" &&
+        computed.opacity !== "0" &&
+        rect.width > 0 &&
+        rect.height > 0;
+
+      if (!isVisible) continue;
+
+      if (!fallbackOpt) fallbackOpt = opt;
+      if (!needle) continue;
+
+      const label = (opt.textContent ?? "").trim().toLowerCase();
+      if (label === needle) {
+        if (!exactOpt) exactOpt = opt;
+      } else if (!exactOnly && label.startsWith(needle)) {
+        if (!prefixOpt) prefixOpt = opt;
+      }
+    }
+
+    if (exactOnly) {
+      if (exactOpt) return exactOpt;
+    } else {
+      const best = exactOpt ?? prefixOpt ?? fallbackOpt;
+      if (best) return best;
+    }
+
+    await wait(400);
+  }
+  return null;
+}
+
+/**
  * What a UI needs to show one field: its stable key (for editing and
  * diffing), a human label, the value that would be written, and whether
  * the value is editable as plain text.
@@ -250,6 +331,12 @@ export interface FieldDescription {
    * resume is a file, shown read-only.
    */
   readonly editable: boolean;
+  /**
+   * The control kind — `undefined` means a plain text input; `"combobox"`
+   * means a typeahead/dropdown (e.g. react-select country picker) where the
+   * UI should offer a select box of valid options rather than free text.
+   */
+  readonly kind?: "text" | "combobox" | "select";
   /**
    * The underlying `PageField` when this descriptor was produced from a
    * collected page field rather than an adapter-defined locator. The fill
@@ -351,14 +438,26 @@ export class AutocompleteField implements Field {
     const input = document.querySelector<HTMLInputElement>(this.selector);
     if (!input || input.value.trim() !== "") return 0;
 
-    await fillAutocomplete(input, value);
-    return 1;
+    // Type the value paste-style and click the matching option if the
+    // typeahead renders one. Country-like comboboxes (e.g. react-select
+    // rendering "India +91") often need the option clicked explicitly.
+    const clicked = await fillAutocomplete(input, value);
+    if (!clicked) {
+      const option = await locateCombinedOption(value);
+      if (option) {
+        clickComboboxOption(option);
+        return 1;
+      }
+      log.warn(`no dropdown option found for "${value}" after retries.`);
+    }
+    return clicked ? 1 : 0;
   }
 
   describe(profile: JobApplicationProfile): FieldDescription[] {
     // Same contract as TextField — an absent control means this requisition
     // does not ask for the field, so a preview UI must not list it.
-    if (document.querySelector(this.selector) === null) return [];
+    const control = document.querySelector<HTMLInputElement>(this.selector);
+    if (!control) return [];
 
     return [
       {
@@ -366,6 +465,19 @@ export class AutocompleteField implements Field {
         label: this.label,
         value: profile.personalInfo[this.key],
         editable: true,
+        kind: "combobox",
+        pageField: {
+          text: this.label,
+          kind: "combobox",
+          control,
+          classes: control.className ? control.className.split(/\s+/) : [],
+          id: control.id || null,
+          name: control.getAttribute("name") || null,
+          inputType: control.type,
+          value: control.value,
+          placeholder: control.getAttribute("placeholder") || null,
+          required: control.required,
+        },
         update: (target, value) => {
           target.personalInfo[this.key] = value;
         },
@@ -660,6 +772,8 @@ export class ComboboxQuestionField implements Field {
         label: this.label,
         value: profile.personalInfo[this.key],
         editable: true,
+        kind: "combobox",
+        pageField: match,
         update: (target, value) => {
           target.personalInfo[this.key] = value;
         },
