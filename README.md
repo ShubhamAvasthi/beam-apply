@@ -61,6 +61,18 @@ Tests use [Vitest](https://vitest.dev) with [happy-dom](https://github.com/capri
 
 Use `bun run test`. `bun test` is disabled (see `bunfig.toml`): it would start Bun's own test runner, which ignores `vitest.config.ts`, instead of Vitest.
 
+The adapter tests run against a whole application page, `tests/fixtures/greenhouse-application.html`. To run them against another saved page without adding it to the repo:
+
+```bash
+BEAMAPPLY_FIXTURE=/path/to/saved-page.html bun run test
+```
+
+```powershell
+$env:BEAMAPPLY_FIXTURE = "C:\path\to\saved-page.html"; bun run test
+```
+
+Save the page before typing anything into it. A saved page contains no dropdown menus (sites render those with JavaScript only while they're open), so tests can check text fields and the resume upload, but not dropdown selection. Fixtures committed to the repo must not contain company names, job content, tracking code or personal details.
+
 ### Editor Setup
 
 Install the ESLint and Prettier extensions for your editor so it flags the same issues CI does:

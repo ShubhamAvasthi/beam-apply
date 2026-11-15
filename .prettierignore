@@ -4,3 +4,7 @@
 .output/
 .wxt/
 bun.lock
+
+# Test fixtures are saved or hand-written pages kept exactly as captured —
+# reformatting would change the label text and whitespace the tests read.
+tests/fixtures/
