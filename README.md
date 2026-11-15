@@ -59,7 +59,7 @@ Tests use [Vitest](https://vitest.dev) with [happy-dom](https://github.com/capri
   bun run test:watch
   ```
 
-Use `bun run test`, not `bun test` — the latter starts Bun's built-in test runner, which skips this suite.
+Use `bun run test`. `bun test` is disabled (see `bunfig.toml`): it would start Bun's own test runner, which ignores `vitest.config.ts`, instead of Vitest.
 
 ### Editor Setup
 

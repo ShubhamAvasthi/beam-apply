@@ -1,0 +1,6 @@
+# This project's tests run on Vitest (`bun run test`). `bun test` would start
+# Bun's own test runner instead, which doesn't load vitest.config.ts, so tests
+# needing the DOM, WXT's auto-imports or Vitest-only APIs fail there. The
+# preload stops it, pointing to `bun run test`, before any test file loads.
+[test]
+preload = ["./tests/bun-test-guard.ts"]
