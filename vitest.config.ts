@@ -4,8 +4,8 @@ import { WxtVitest } from "wxt/testing/vitest-plugin";
 /**
  * Unit and DOM tests, run with `bun run test`.
  *
- * (Not `bun test` — that starts Bun's own built-in runner, which ignores this
- * config and the `test` script in package.json.)
+ * (Not `bun test` — that is Bun's own built-in test runner, not the `test`
+ * script in package.json. It ignores this config, so the tests fail.)
  *
  * `WxtVitest` applies the same setup the extension is built with: the `@/`
  * and `~/` path aliases, WXT auto-imports (e.g. `createLogger`), and an
