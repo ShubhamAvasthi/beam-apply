@@ -5,6 +5,12 @@ export default defineConfig({
   browser: "firefox",
   // AMO requires MV3 for new submissions; override Firefox's MV2 default.
   manifestVersion: 3,
+  zip: {
+    // The Firefox sources zip goes to AMO reviewers to reproduce the build;
+    // tests and their fixtures (saved application pages) don't belong in it.
+    // WXT already drops `*.test.ts` files — this covers the rest of tests/.
+    excludeSources: ["tests/**", "vitest.config.ts"],
+  },
   manifest: (env) => ({
     name: "BeamApply",
     description:
