@@ -56,21 +56,19 @@ export function mountAutofillButton(): void {
 /**
  * Opens the BeamApply options/profile editor.
  *
- * Firefox content scripts may call `runtime.openOptionsPage()`; other
- * browsers only expose it to extension contexts. Fall back to opening the
- * options URL in a new tab — `open_in_tab` is set, so it's the same page.
+ * Content scripts cannot open extension pages directly — that requires the
+ * extension context (background service worker / popup / options page), which
+ * is why we message the background script and let it call
+ * `browser.runtime.openOptionsPage()`.
  *
- * Exported so the sidebar's "edit profile" affordance shares this one
- * implementation rather than duplicating the cross-browser fallback.
+ * Exported so the sidebar's "edit profile" affordance and the autofill button
+ * share this one implementation.
  */
-export function openOptionsPage(): void {
-  const opener = browser.runtime.openOptionsPage;
-  if (typeof opener === "function") {
-    Promise.resolve(opener()).catch(() => {
-      window.open(browser.runtime.getURL("/options.html"), "_blank");
-    });
-  } else {
-    window.open(browser.runtime.getURL("/options.html"), "_blank");
+export async function openOptionsPage(): Promise<void> {
+  try {
+    await browser.runtime.sendMessage({ type: "OPEN_OPTIONS_PAGE" });
+  } catch (e) {
+    log.error("failed to open options page", e);
   }
 }
 
@@ -91,7 +89,7 @@ async function fillFromProfile(button: HTMLButtonElement): Promise<void> {
       `profile is incomplete; missing required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Open the profile editor to fix it.`,
     );
     button.textContent = INCOMPLETE_LABEL;
-    openOptionsPage();
+    void openOptionsPage();
     return;
   }
 
