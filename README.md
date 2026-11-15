@@ -46,6 +46,21 @@ Make sure you have [Bun](https://bun.sh) installed.
 
 Every browser-specific command also exists in explicit form (`dev:firefox`, `build:firefox`, `zip:firefox`) — the unsuffixed command is always Firefox.
 
+### Testing
+
+Tests use [Vitest](https://vitest.dev) with [happy-dom](https://github.com/capricorn86/happy-dom) standing in for the browser, and live in `tests/`.
+
+- **Run the tests:**
+  ```bash
+  bun run test
+  ```
+- **Re-run on every change:**
+  ```bash
+  bun run test:watch
+  ```
+
+Use `bun run test`, not `bun test` — the latter starts Bun's built-in test runner, which skips this suite.
+
 ### Editor Setup
 
 Install the ESLint and Prettier extensions for your editor so it flags the same issues CI does:
